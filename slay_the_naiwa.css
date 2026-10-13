@@ -1,0 +1,644 @@
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  body {
+    background: #1a1a1f;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; overflow: hidden; color: #e8e0d5;
+  }
+
+  /* ============================================================
+     通用全屏容器
+     ============================================================ */
+  .screen {
+    width: 1100px; height: 720px;
+    background: #22222a; border-radius: 12px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 60px rgba(0,0,0,0.3);
+    display: flex; flex-direction: column;
+  }
+  .hidden { display: none !important; }
+
+  /* ============================================================
+     主菜单
+     ============================================================ */
+  #mainMenu {
+    background:
+      radial-gradient(ellipse at 50% 40%, #2a3040 0%, #1a1a1f 70%),
+      #1a1a1f;
+    justify-content: center; align-items: center;
+  }
+  #mainMenu::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      45deg, transparent, transparent 40px,
+      rgba(255,215,0,0.02) 40px, rgba(255,215,0,0.02) 42px
+    );
+    pointer-events: none;
+  }
+  .menu-content {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 8px;
+    text-align: center;
+  }
+  .game-title {
+    font-size: 76px;
+    font-weight: 900;
+    letter-spacing: 12px;
+    color: #e8c84a;
+    text-shadow:
+      0 0 20px rgba(255,215,0,0.5),
+      0 0 40px rgba(255,215,0,0.3),
+      4px 4px 0 #6b5a2e;
+    margin-bottom: 4px;
+  }
+  .game-subtitle {
+    font-size: 16px; color: #888;
+    letter-spacing: 6px; text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .game-tagline {
+    font-size: 14px; color: #c8a84a;
+    font-style: italic; margin-bottom: 36px;
+  }
+  .menu-frog {
+    width: 140px; height: 160px;
+    position: relative;
+    margin-bottom: 20px;
+    animation: idleBob 2.4s ease-in-out infinite;
+  }
+  @keyframes idleBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .menu-frog .frog-body {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 130px; background: #e8c84a;
+    border-radius: 50% 50% 45% 45% / 55% 55% 45% 45%;
+    border: 3px solid #b89520;
+  }
+  .menu-frog .frog-belly {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    width: 72px; height: 80px; background: #f5edcf;
+    border-radius: 50% 50% 45% 45% / 55% 55% 45% 45%;
+  }
+  .menu-frog .frog-eye {
+    position: absolute; top: -18px; width: 42px; height: 42px;
+    background: #fff; border-radius: 50%; border: 3px solid #b89520;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .menu-frog .frog-eye.left { left: 8px; }
+  .menu-frog .frog-eye.right { right: 8px; }
+  .menu-frog .frog-eye::after {
+    content: ''; width: 10px; height: 10px;
+    background: #111; border-radius: 50%;
+  }
+  .menu-frog .frog-eye::before {
+    content: ''; position: absolute; inset: 6px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #c8e8c0, #88bb80); opacity: 0.6;
+  }
+  .menu-frog .frog-mouth {
+    position: absolute; bottom: 35px; left: 50%; transform: translateX(-50%);
+    width: 44px; height: 22px; border-bottom: 5px solid #6b5a2e;
+    border-radius: 0 0 50% 50%;
+  }
+  .menu-frog .frog-arm {
+    position: absolute; width: 18px; height: 55px;
+    background: #6b5a2e; border-radius: 9px; top: 70px;
+  }
+  .menu-frog .frog-arm.left { left: 6px; transform: rotate(15deg); }
+  .menu-frog .frog-arm.right { right: 6px; transform: rotate(-15deg); }
+
+  .menu-buttons {
+    display: flex; flex-direction: column; gap: 12px;
+    margin-top: 8px;
+  }
+  .menu-btn {
+    min-width: 260px;
+    padding: 14px 40px;
+    border-radius: 10px;
+    border: 2px solid #444;
+    background: #2a2a35;
+    color: #ddd;
+    font-size: 16px; font-weight: bold;
+    letter-spacing: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .menu-btn:hover {
+    background: #3a3a48;
+    border-color: #ffd966;
+    color: #ffd966;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255,215,0,0.2);
+  }
+  .menu-btn.primary {
+    background: #4a3a10;
+    border-color: #ffd966;
+    color: #ffd966;
+    text-shadow: 0 0 10px rgba(255,215,0,0.5);
+  }
+  .menu-btn.primary:hover {
+    background: #6b5220;
+    box-shadow: 0 6px 24px rgba(255,215,0,0.4);
+  }
+  .version {
+    margin-top: 30px;
+    font-size: 11px; color: #555;
+    letter-spacing: 2px;
+  }
+
+  /* ============================================================
+     教学界面
+     ============================================================ */
+  #tutorial {
+    background: #1e1e26;
+  }
+  .tutorial-content {
+    flex: 1;
+    padding: 26px 46px;
+    overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .tutorial-content h1 {
+    font-size: 32px;
+    color: #ffd966;
+    text-align: center;
+    margin-bottom: 4px;
+    letter-spacing: 6px;
+    text-shadow: 0 0 20px rgba(255,215,0,0.4);
+  }
+  .tutorial-content .tut-sub {
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    letter-spacing: 3px;
+    margin-bottom: 22px;
+  }
+  .tutorial-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 6px;
+  }
+  .tut-card {
+    background: #26262f;
+    border: 1px solid #383844;
+    border-left: 3px solid #ffd966;
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .tut-card h2 {
+    font-size: 15px;
+    color: #ffd966;
+    margin-bottom: 8px;
+    letter-spacing: 2px;
+  }
+  .tut-card p, .tut-card li {
+    font-size: 12.5px;
+    color: #bbb;
+    line-height: 1.65;
+  }
+  .tut-card ul { padding-left: 18px; margin-top: 4px; }
+  .tut-card li { margin-bottom: 3px; }
+  .tut-card b { color: #ffcc66; }
+  .tut-card .hl { color: #88ccff; }
+  .tut-card .dgr { color: #ff8888; }
+  .tut-card.boss-card {
+    grid-column: 1 / -1;
+    border-left-color: #ff6644;
+    background: #2a2028;
+  }
+  .tut-card.boss-card h2 { color: #ff8866; }
+  .tut-footer {
+    display: flex; justify-content: center;
+    margin-top: 16px; padding-top: 14px;
+    border-top: 1px solid #333;
+  }
+
+  /* ============================================================
+     游戏界面
+     ============================================================ */
+  #game {
+    display: flex; flex-direction: column;
+  }
+
+  /* ----- 顶部状态栏 ----- */
+  #topBar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 16px; background: #16161c;
+    border-bottom: 2px solid #333340; flex-shrink: 0; height: 52px;
+  }
+  #topBar .left, #topBar .right { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  #topBar .label { color: #888; }
+  #topBar .val { font-weight: bold; color: #ffd966; }
+  .clickable { cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: background 0.15s; }
+  .clickable:hover { background: #333; color: #fff; }
+  .divider { width: 1px; height: 20px; background: #333; margin: 0 4px; }
+
+  .lp-orb {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffe066, #cc9900);
+    color: #1a1a1f; font-weight: 900; font-size: 12px;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+    transition: transform 0.2s;
+  }
+  .lp-orb.spent { background: radial-gradient(circle at 35% 35%, #444, #222); color: #666; box-shadow: none; }
+
+  #laughMeterWrap { display: flex; align-items: center; gap: 8px; }
+  #laughMeterBar {
+    width: 160px; height: 14px; background: #111;
+    border-radius: 7px; overflow: hidden; border: 1px solid #444;
+  }
+  #laughMeterFill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #66cc66, #ffcc00);
+    border-radius: 7px; transition: width 0.3s, background 0.3s;
+  }
+  #laughMeterText { font-size: 11px; color: #aaa; min-width: 50px; }
+
+  /* ----- 战斗区 ----- */
+  #battlefield {
+    flex: 1; display: flex; position: relative;
+    background: radial-gradient(ellipse at 50% 30%, #2a2a35, #1a1a1f);
+    min-height: 0;
+  }
+  #battlefield.boss-bg {
+    background: radial-gradient(ellipse at 50% 30%, #3a2030, #1a0f14);
+  }
+  #playerArea {
+    width: 280px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 10px; border-right: 1px solid #2a2a35; position: relative;
+  }
+  #playerSprite {
+    width: 140px; height: 160px; position: relative;
+    cursor: pointer; transition: transform 0.15s;
+  }
+  #playerSprite:hover { transform: scale(1.05); }
+  #playerSprite.laughing { animation: laughShake 0.3s infinite; }
+  @keyframes laughShake {
+    0%,100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(-4px) rotate(-3deg); }
+    75% { transform: translateX(4px) rotate(3deg); }
+  }
+  .frog-body {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 130px; background: #e8c84a;
+    border-radius: 50% 50% 45% 45% / 55% 55% 45% 45%;
+    border: 3px solid #b89520;
+  }
+  .frog-belly {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    width: 72px; height: 80px; background: #f5edcf;
+    border-radius: 50% 50% 45% 45% / 55% 55% 45% 45%;
+  }
+  .frog-eye {
+    position: absolute; top: -18px; width: 42px; height: 42px;
+    background: #fff; border-radius: 50%; border: 3px solid #b89520;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .frog-eye.left { left: 8px; }
+  .frog-eye.right { right: 8px; }
+  .frog-eye::after {
+    content: ''; width: 10px; height: 10px;
+    background: #111; border-radius: 50%;
+  }
+  .frog-eye::before {
+    content: ''; position: absolute; inset: 6px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #c8e8c0, #88bb80); opacity: 0.6;
+  }
+  .frog-arm {
+    position: absolute; width: 18px; height: 55px;
+    background: #6b5a2e; border-radius: 9px; top: 70px;
+  }
+  .frog-arm.left { left: 6px; transform: rotate(15deg); }
+  .frog-arm.right { right: 6px; transform: rotate(-15deg); }
+  .frog-mouth {
+    position: absolute; bottom: 35px; left: 50%; transform: translateX(-50%);
+    width: 40px; height: 18px; border-bottom: 4px solid #6b5a2e;
+    border-radius: 0 0 50% 50%; transition: all 0.2s;
+  }
+  .frog-mouth.laughing {
+    height: 28px; border-bottom-width: 6px;
+    background: #cc6666; border-color: #8b3333;
+  }
+  #playerHpBar {
+    width: 120px; height: 16px; background: #111;
+    border-radius: 8px; margin-top: 8px; overflow: hidden; border: 1px solid #555;
+  }
+  #playerHpFill {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, #cc3333, #ff6666); transition: width 0.3s;
+  }
+  #playerHpText { font-size: 13px; margin-top: 3px; color: #ff8888; font-weight: bold; }
+
+  #enemyArea {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative; padding: 10px;
+  }
+  #enemySpriteWrap { display: flex; flex-direction: column; align-items: center; }
+  #enemyIntent {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; background: #2a1a1a;
+    border: 1px solid #662222; border-radius: 20px;
+    margin-bottom: 12px; font-size: 14px; min-height: 36px;
+    transition: all 0.3s;
+  }
+  #enemyIntent.blurred { filter: blur(3px); opacity: 0.7; }
+  #enemyIntent.boss-intent { background: #2a1515; border-color: #aa4433; }
+  #enemyIntent .intent-icon { font-size: 20px; }
+  #enemyIntent .intent-desc { color: #ff9999; }
+
+  #enemySprite { width: 120px; height: 140px; position: relative; transition: transform 0.15s; }
+  #enemySprite.hit { animation: hitFlash 0.25s; }
+  @keyframes hitFlash {
+    0% { transform: translateX(0); filter: brightness(1); }
+    30% { transform: translateX(-8px); filter: brightness(3); }
+    100% { transform: translateX(0); filter: brightness(1); }
+  }
+  .enemy-body {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 110px; background: #4a4a5a;
+    border-radius: 40% 40% 30% 30%; border: 3px solid #2a2a3a;
+  }
+  .enemy-eye {
+    position: absolute; top: 15px; width: 24px; height: 24px;
+    background: #ff3333; border-radius: 50%; border: 2px solid #660000;
+  }
+  .enemy-eye.left { left: 18px; }
+  .enemy-eye.right { right: 18px; }
+
+  /* 盛碗奶蛙（BOSS）外观 */
+  #enemySprite.boss { width: 160px; height: 180px; }
+  #enemySprite.boss .enemy-body {
+    width: 130px; height: 140px;
+    background: #d8b84a;
+    border-color: #8b6a20;
+    border-radius: 50% 50% 45% 45% / 55% 55% 45% 45%;
+  }
+  #enemySprite.boss .enemy-belly {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    width: 86px; height: 90px; background: #f5edcf;
+    border-radius: 50% 50% 45% 45% / 55% 55% 45% 45%;
+  }
+  #enemySprite.boss .enemy-eye {
+    top: -20px;
+    width: 46px; height: 46px;
+    background: #fff; border-color: #8b6a20;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #enemySprite.boss .enemy-eye.left { left: 6px; }
+  #enemySprite.boss .enemy-eye.right { right: 6px; }
+  #enemySprite.boss .enemy-eye::after {
+    content: ''; width: 11px; height: 11px;
+    background: #111; border-radius: 50%;
+  }
+  #enemySprite.boss .enemy-eye::before {
+    content: ''; position: absolute; inset: 7px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #ffcccc, #cc6666); opacity: 0.7;
+  }
+  #enemySprite.boss .enemy-mouth {
+    position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+    width: 46px; height: 26px;
+    border-bottom: 5px solid #6b4a1e;
+    border-radius: 0 0 50% 50%;
+    background: #b8333a;
+    border-color: #6b1a20;
+  }
+  /* 碗头盔 */
+  #enemySprite.boss .enemy-helmet {
+    position: absolute; top: -46px; left: 50%; transform: translateX(-50%);
+    width: 118px; height: 56px;
+    background: radial-gradient(ellipse at 50% 100%, #f0f0f0, #909090);
+    border-radius: 50% 50% 8% 8% / 100% 100% 8% 8%;
+    border: 3px solid #555;
+    box-shadow: inset 0 -6px 12px rgba(0,0,0,0.3);
+  }
+  #enemySprite.boss .enemy-helmet::after {
+    content: '';
+    position: absolute; bottom: -6px; left: -8px; right: -8px;
+    height: 12px;
+    background: #707070;
+    border: 3px solid #555;
+    border-top: none;
+    border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  }
+  /* BOSS 皇冠标志 */
+  #enemySprite.boss .crown-mark {
+    position: absolute;
+    top: -68px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 22px;
+    filter: drop-shadow(0 0 6px #ffd966);
+  }
+  #enemySprite.boss.stunned { animation: stunSpin 1.5s linear infinite; }
+  @keyframes stunSpin {
+    0% { transform: rotate(-6deg); filter: brightness(1.2) hue-rotate(20deg); }
+    50% { transform: rotate(6deg); filter: brightness(1.2) hue-rotate(20deg); }
+    100% { transform: rotate(-6deg); filter: brightness(1.2) hue-rotate(20deg); }
+  }
+  .stun-icon {
+    position: absolute;
+    top: -70px; left: 50%; transform: translateX(-50%);
+    font-size: 24px;
+    animation: spin 1.2s linear infinite;
+    filter: drop-shadow(0 0 6px #ffee88);
+  }
+  @keyframes spin { from { transform: translateX(-50%) rotate(0); } to { transform: translateX(-50%) rotate(360deg); } }
+
+  #enemyHpBar {
+    width: 110px; height: 16px; background: #111;
+    border-radius: 8px; margin-top: 8px; overflow: hidden; border: 1px solid #555;
+  }
+  #enemyHpBar.boss { width: 160px; height: 20px; border-color: #aa7733; }
+  #enemyHpFill {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, #aa2222, #ee4444); transition: width 0.3s;
+  }
+  #enemyHpFill.boss { background: linear-gradient(90deg, #cc6622, #ffaa33); }
+  #enemyHpText { font-size: 13px; margin-top: 3px; color: #ff8888; font-weight: bold; }
+  #enemyStatus { margin-top: 6px; display: flex; gap: 8px; font-size: 11px; flex-wrap: wrap; justify-content: center; }
+  .status-badge {
+    padding: 2px 8px; border-radius: 10px;
+    background: #333; border: 1px solid #555; color: #aaa;
+  }
+  .status-badge.stun { border-color: #ffee44; color: #ffee66; }
+
+  #playerBlock {
+    position: absolute; top: 10px; right: 10px;
+    display: flex; align-items: center; gap: 4px;
+    background: #1a2a3a; border: 1px solid #3366aa;
+    border-radius: 16px; padding: 4px 10px; font-size: 13px;
+    color: #88bbff; opacity: 0; transition: opacity 0.3s;
+  }
+  #playerBlock.active { opacity: 1; }
+
+  /* ----- 手牌 ----- */
+  #handArea {
+    height: 210px; background: #1e1e26;
+    border-top: 2px solid #333340;
+    display: flex; align-items: flex-end; justify-content: center;
+    gap: 8px; padding: 12px 20px 16px;
+    flex-shrink: 0; overflow-x: auto; overflow-y: visible;
+  }
+  .card {
+    width: 130px; height: 170px; border-radius: 10px;
+    background: #2a2a35; border: 2px solid #555;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 8px; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    position: relative; flex-shrink: 0;
+  }
+  .card:hover { transform: translateY(-14px); box-shadow: 0 8px 20px rgba(0,0,0,0.6); }
+  .card.unplayable { opacity: 0.45; cursor: not-allowed; filter: grayscale(0.6); }
+  .card.unplayable:hover { transform: none; box-shadow: none; }
+  .card-cost {
+    position: absolute; top: -8px; left: -8px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffe066, #cc9900);
+    color: #1a1a1f; font-weight: 900; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #ffd966; box-shadow: 0 0 8px rgba(255,215,0,0.4);
+  }
+  .card-name { font-size: 13px; font-weight: bold; margin-top: 10px; text-align: center; line-height: 1.2; }
+  .card-type { font-size: 10px; color: #888; margin-top: 2px; }
+  .card-desc {
+    font-size: 11px; color: #bbb; text-align: center;
+    margin-top: 8px; line-height: 1.4; flex: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-tag {
+    position: absolute; bottom: 6px; font-size: 9px;
+    padding: 1px 8px; border-radius: 8px;
+    background: #553300; color: #ffcc66; border: 1px solid #886600;
+  }
+  .card.laugh-card { border-color: #cc8844; }
+  .card.laugh-card .card-name { color: #ffcc66; }
+  .card.attack-card { border-color: #aa4444; }
+  .card.attack-card .card-name { color: #ff8888; }
+  .card.skill-card { border-color: #4488aa; }
+  .card.skill-card .card-name { color: #88ccff; }
+  .card.power-card { border-color: #aa88dd; }
+  .card.power-card .card-name { color: #cc99ff; }
+
+  /* ----- 底部栏 ----- */
+  #bottomBar {
+    height: 56px; background: #16161c;
+    border-top: 1px solid #333;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; flex-shrink: 0;
+  }
+  #bottomBar .info { font-size: 12px; color: #888; }
+  #bottomBar .info b { color: #ffd966; }
+  .btn {
+    padding: 10px 28px; border-radius: 8px;
+    border: 1px solid #555; background: #2a2a35;
+    color: #ddd; font-size: 14px; font-weight: bold;
+    cursor: pointer; transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn:hover { background: #3a3a48; border-color: #888; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.end-turn { background: #663333; border-color: #aa4444; color: #ffcccc; }
+  .btn.end-turn:hover { background: #884444; }
+  .btn.primary { background: #335533; border-color: #44aa44; color: #ccffcc; }
+  .btn.primary:hover { background: #447744; }
+  .btn.ghost { background: #222; border-color: #444; color: #aaa; }
+  .btn.ghost:hover { background: #333; color: #ddd; }
+  .btn.small { padding: 7px 16px; font-size: 12px; }
+
+  /* ----- 日志 ----- */
+  #log {
+    position: absolute; bottom: 10px; right: 10px;
+    width: 220px; max-height: 160px; overflow-y: auto;
+    font-size: 11px; color: #777; line-height: 1.6;
+    pointer-events: none; text-align: right; opacity: 0.85;
+  }
+  #log div { margin-bottom: 2px; }
+  #log .dmg { color: #ff6666; }
+  #log .heal { color: #66ff88; }
+  #log .laugh { color: #ffcc66; }
+  #log .block { color: #88bbff; }
+  #log .boss { color: #ff8866; font-weight: bold; }
+
+  /* ----- 模态框 ----- */
+  .modal {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .modal.show { display: flex; }
+  .modal-content {
+    background: #22222a;
+    border: 2px solid #444; border-radius: 12px;
+    padding: 22px 26px;
+    max-width: 88%; max-height: 86%;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 16px;
+    box-shadow: 0 0 50px rgba(0,0,0,0.9);
+  }
+  .modal-title {
+    font-size: 20px; color: #ffd966; font-weight: bold;
+    text-shadow: 0 0 12px rgba(255,215,0,0.4);
+  }
+  .modal-sub { font-size: 12px; color: #888; }
+  .modal-cards {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    justify-content: center; overflow-y: auto;
+    max-height: 460px; padding: 10px;
+  }
+  .modal-cards .card {
+    cursor: pointer;
+    width: 120px; height: 160px;
+  }
+  .modal-cards .card:hover { transform: translateY(-8px); }
+  .modal-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+  .reward-intro { font-size: 13px; color: #ccc; text-align: center; max-width: 520px; line-height: 1.6; }
+  .reward-intro .hint { color: #ffd966; }
+  .reward-intro .ghost-txt { color: #888; font-size: 11.5px; }
+  .boss-reward-banner {
+    background: linear-gradient(90deg, #552222, #883333, #552222);
+    border: 1px solid #ff6644; border-radius: 20px;
+    padding: 6px 22px; font-size: 13px; color: #ffbb99;
+    letter-spacing: 3px;
+    box-shadow: 0 0 20px rgba(255,100,60,0.4);
+  }
+
+  /* 结束覆盖层 */
+  #overlay h1 { font-size: 48px; margin-bottom: 16px; letter-spacing: 6px; }
+  #overlay h1.win { color: #66ff88; text-shadow: 0 0 30px rgba(100,255,100,0.5); }
+  #overlay h1.lose { color: #ff4444; text-shadow: 0 0 30px rgba(255,0,0,0.5); }
+  #overlay p { font-size: 15px; color: #aaa; margin-bottom: 26px; text-align: center; line-height: 1.7; }
+  #overlay .btn { padding: 14px 40px; font-size: 16px; }
+
+  /* 阈值特效 */
+  #thresholdFx {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 40px; font-weight: 900;
+    color: #ffcc00; text-shadow: 0 0 30px rgba(255,200,0,0.8);
+    pointer-events: none; opacity: 0; z-index: 50;
+  }
+  #thresholdFx.show { animation: thresholdPop 1s ease-out forwards; }
+  @keyframes thresholdPop {
+    0% { opacity: 0; transform: translate(-50%,-50%) scale(0.5); }
+    30% { opacity: 1; transform: translate(-50%,-50%) scale(1.2); }
+    100% { opacity: 0; transform: translate(-50%,-50%) scale(1.5); }
+  }
+
+  #battleNum.flash { animation: battleFlash 0.8s; }
+  @keyframes battleFlash {
+    0% { color: #fff; text-shadow: 0 0 20px #ffd966; }
+    100% { color: #ffd966; text-shadow: none; }
+  }
+  #battleNum.boss-num { color: #ff6644; text-shadow: 0 0 12px rgba(255,100,60,0.6); }
