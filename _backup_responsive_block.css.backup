@@ -1,0 +1,29 @@
+/* ============================================================
+   备份：SlayTheNaiwa.css 末尾「分辨率自适应」整段（2026-10-13 复写后）
+   ------------------------------------------------------------
+   用途：这一段曾被外部回退过一次（--game-margin / --design-w /
+   --design-h 丢失，只剩旧的 :root { --game-scale: 1; }）。
+   若再次被回退，可直接用本文件的内容覆盖 SlayTheNaiwa.css 末尾同名段落。
+
+   同时注意：这三行变量与 Responsive.js 中 readDesign() / readMargin()
+   读取的变量名必须完全一致，缺一不可。
+   ============================================================ */
+:root {
+  --game-scale: 1;      /* 缩放系数，由 Responsive.js 写入 */
+  --game-margin: 32px;  /* 画面四周留白：改这一处即可 */
+  --design-w: 1100px;   /* 设计基准宽，需与 .screen 一致 */
+  --design-h: 720px;    /* 设计基准高，需与 .screen 一致 */
+}
+
+#stage {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width:  var(--design-w);
+  height: var(--design-h);
+  transform: translate(-50%, -50%) scale(var(--game-scale, 1));
+  transform-origin: center center;
+}
+
+/* 三个界面铺满舞台，各自保持原有层叠与绝对定位基准 */
+#mainMenu, #tutorial, #game { position: absolute; top: 0; left: 0; }

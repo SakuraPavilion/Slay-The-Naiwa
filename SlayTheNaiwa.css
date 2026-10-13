@@ -1,7 +1,28 @@
+  /* ============================================================
+     像素字体 QuanPixel 8px
+     ------------------------------------------------------------
+     项目自带的 quan.ttf，覆盖拉丁字母、数字与 11000+ 汉字，
+     与游戏的像素风格一致。
+
+     注意：该字体不含 emoji（👑 🛡️ 💥 …），因此 font-family 里必须
+     保留 emoji 字体作为后备，否则界面上的图标会变成豆腐块或空白。
+     Segoe UI Emoji / Segoe UI Symbol 用于 Windows，其后是各平台常见
+     的 emoji 字体；最后再回落到系统无衬线字体兜底。
+     ============================================================ */
+  @font-face {
+    font-family: 'QuanPixel';
+    src: url('quan.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
   body {
     background: #1a1a1f;
-    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-family: 'QuanPixel', "Segoe UI", "PingFang SC", "Microsoft YaHei",
+                 "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji",
+                 "Apple Color Emoji", sans-serif;
     display: flex; justify-content: center; align-items: center;
     min-height: 100vh; overflow: hidden; color: #e8e0d5;
   }
@@ -149,6 +170,102 @@
     font-size: 11px; color: #555;
     letter-spacing: 2px;
   }
+
+  /* 全屏按钮：比主按钮次一级，但仍明显可点 */
+  .menu-btn.alt {
+    min-width: 220px;
+    padding: 11px 28px;
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: #b9c2cf;
+    border-color: #3c4450;
+    background: #252b34;
+  }
+  .menu-btn.alt:hover {
+    color: #8fd0ff;
+    border-color: #8fd0ff;
+    background: #2b3644;
+    box-shadow: 0 6px 20px rgba(120,190,255,0.18);
+  }
+  /* 已进入全屏时给按钮一点状态感 */
+  #fullscreenBtn.is-on { color: #8fd0ff; border-color: #4a6b8a; }
+  /* 属性选择器权重 (1 id + 1 属性) 高于上面的 .menu-btn.alt，可稳定隐藏。
+     由 Fullscreen.js 在确认支持全屏后解除 hidden，避免 iOS 上出现死按钮,
+     也避免脚本执行前的瞬间闪现。 */
+  #fullscreenBtn[hidden] { display: none; }
+
+  /* ============================================================
+     移动端横屏提示覆盖层
+     ------------------------------------------------------------
+     只对「触屏设备 且 竖屏」生效，见下方 @media 查询。
+     z-index 高于 #stage（画布）与 .modal（100），保证一定盖在最上层。
+     ============================================================ */
+  body.is-touch #landscapeHint[hidden]:not(.dismissed) { display: flex; }
+
+  #landscapeHint {
+    display: none;
+    position: fixed; inset: 0;
+    z-index: 9999;
+    box-sizing: border-box;
+    padding: 24px;
+    background:
+      radial-gradient(ellipse at 50% 40%, #2a3040 0%, #16161b 70%),
+      #16161b;
+    color: #e8e0d5;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    /* 与 body 一致，确保覆盖层也用像素字体，且 emoji 有后备 */
+    font-family: 'QuanPixel', "Segoe UI", "PingFang SC", "Microsoft YaHei",
+                 "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji",
+                 "Apple Color Emoji", sans-serif;
+  }
+  #landscapeHint .lh-inner {
+    max-width: 340px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #landscapeHint .lh-icon {
+    font-size: 46px; line-height: 1;
+    display: inline-block;
+    animation: lhTilt 2.4s ease-in-out infinite;
+  }
+  @keyframes lhTilt {
+    0%, 45%   { transform: rotate(0deg); }
+    55%, 100% { transform: rotate(-90deg); }
+  }
+  #landscapeHint h2 {
+    margin: 0 0 10px;
+    font-size: 20px; font-weight: bold;
+    color: #ffd966;
+    letter-spacing: 3px;
+    text-shadow: 0 0 16px rgba(255,215,0,0.35);
+  }
+  #landscapeHint p {
+    font-size: 13px; line-height: 1.8; color: #b9b2a6;
+  }
+  #landscapeHint .lh-tip {
+    margin-top: 10px;
+    font-size: 13px; color: #8fd0ff; letter-spacing: 2px;
+  }
+  #landscapeHint .menu-btn {
+    margin-top: 22px;
+    min-width: 180px;
+    padding: 10px 24px;
+    font-size: 13px;
+    letter-spacing: 2px;
+  }
+
+  /* 横屏（或方形）时不提示；只有竖向视口才需要提醒旋转 */
+  @media (orientation: landscape), (min-aspect-ratio: 1/1) {
+    body.is-touch #landscapeHint[hidden]:not(.dismissed) { display: none; }
+  }
+  /* 视口已足够宽时（平板横屏、折叠屏展开）也无需提示 */
+  @media (min-width: 900px) {
+    body.is-touch #landscapeHint[hidden]:not(.dismissed) { display: none; }
+  }
+
+  /* 用户点了「仍要继续」：本次会话不再打扰。
+     已并入上面的 :not(.dismissed) —— 无需依赖规则先后顺序 */
 
   /* ============================================================
      教学界面
@@ -465,11 +582,47 @@
   #enemyHpFill.boss { background: linear-gradient(90deg, #cc6622, #ffaa33); }
   #enemyHpText { font-size: 13px; margin-top: 3px; color: #ff8888; font-weight: bold; }
   #enemyStatus { margin-top: 6px; display: flex; gap: 8px; font-size: 11px; flex-wrap: wrap; justify-content: center; }
+  /* 玩家状态栏：与敌人状态同款式，位于血条下方 */
+  #playerStatus { margin-top: 6px; display: flex; gap: 8px; font-size: 11px; flex-wrap: wrap; justify-content: center; }
   .status-badge {
     padding: 2px 8px; border-radius: 10px;
     background: #333; border: 1px solid #555; color: #aaa;
+    cursor: pointer; user-select: none;
+    transition: filter 0.12s, transform 0.12s;
   }
+  .status-badge:hover { filter: brightness(1.35); transform: translateY(-1px); }
+  /* 正面效果 / 负面效果用颜色区分 */
+  .status-badge.good { border-color: #3f8a6a; color: #7fe0a8; background: #1e2e26; }
+  .status-badge.bad  { border-color: #8a3f3f; color: #ff9a8a; background: #2e1e1e; }
   .status-badge.stun { border-color: #ffee44; color: #ffee66; }
+
+  /* ----- 状态悬浮说明 -----
+     鼠标停留在状态徽章上时出现，移出即消失（逻辑见 makeStatusBadge）。
+     位置由 JS 计算后写入 inline 的 left/top，这里只负责外观。 */
+  #statusTip {
+    display: none;
+    position: fixed;
+    z-index: 400;
+    max-width: 260px;
+    padding: 10px 12px;
+    background: #1c1c24;
+    border: 1px solid #5a5a6a;
+    border-radius: 8px;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.75);
+    font-size: 12px; line-height: 1.7; color: #cfc8bd;
+    pointer-events: none;      /* 不挡鼠标，避免与 mouseleave 互相抖动 */
+  }
+  #statusTip.show { display: block; }
+  #statusTip .st-head {
+    font-size: 13px; font-weight: bold; color: #ffd966;
+    margin-bottom: 6px; white-space: nowrap;
+  }
+  #statusTip .st-side { font-size: 10px; padding: 1px 6px; border-radius: 7px; margin-left: 6px; font-weight: normal; }
+  #statusTip .st-side.good { color: #7fe0a8; border: 1px solid #3f8a6a; }
+  #statusTip .st-side.bad  { color: #ff9a8a; border: 1px solid #8a3f3f; }
+  #statusTip .st-value { margin-bottom: 4px; color: #e8e0d5; }
+  #statusTip .st-value b { color: #ffd966; font-size: 14px; }
+  #statusTip .st-text { color: #b0a99e; }
 
   #playerBlock {
     position: absolute; top: 10px; right: 10px;
@@ -507,8 +660,16 @@
     display: flex; align-items: center; justify-content: center;
     border: 2px solid #ffd966; box-shadow: 0 0 8px rgba(255,215,0,0.4);
   }
-  .card-name { font-size: 13px; font-weight: bold; margin-top: 10px; text-align: center; line-height: 1.2; }
-  .card-type { font-size: 10px; color: #888; margin-top: 2px; }
+  /* 卡名与类型：都以卡牌宽度为基准居中，类型固定在卡名正下方 */
+  .card-name {
+    font-size: 13px; font-weight: bold; margin-top: 10px;
+    width: 100%; text-align: center; line-height: 1.2;
+  }
+  .card-type {
+    width: 100%; text-align: center;
+    font-size: 10px; color: #888; margin-top: 3px;
+    letter-spacing: 1px;
+  }
   .card-desc {
     font-size: 11px; color: #bbb; text-align: center;
     margin-top: 8px; line-height: 1.4; flex: 1;
@@ -519,6 +680,24 @@
     padding: 1px 8px; border-radius: 8px;
     background: #553300; color: #ffcc66; border: 1px solid #886600;
   }
+  /* 稀有度标识：贴在卡牌左下角，与上方「狂笑 / 消耗」标签同处底部，
+     用不同颜色区分普通 / 罕见 / 稀有 */
+  .card-rarity {
+    position: absolute; bottom: 6px; left: 8px;
+    font-size: 9px; line-height: 1;
+    padding: 2px 6px; border-radius: 7px;
+    letter-spacing: 1px;
+    background: rgba(0,0,0,0.45);
+    border: 1px solid #6a7480; color: #9aa4b0;
+  }
+  .card.rarity-uncommon .card-rarity { border-color: #3f8a82; color: #6fd3c7; }
+  .card.rarity-rare .card-rarity {
+    border-color: #b99a2e; color: #ffd966;
+    background: rgba(90,70,0,0.5);
+    box-shadow: 0 0 8px rgba(255,215,0,0.35);
+  }
+  /* ----- 卡牌配色以后由「稀有度」决定（见下方 .card.rarity-*） -----
+     这里保留卡名基础色，具体颜色由稀有度规则覆盖。 */
   .card.laugh-card { border-color: #cc8844; }
   .card.laugh-card .card-name { color: #ffcc66; }
   .card.attack-card { border-color: #aa4444; }
@@ -527,6 +706,54 @@
   .card.skill-card .card-name { color: #88ccff; }
   .card.power-card { border-color: #aa88dd; }
   .card.power-card .card-name { color: #cc99ff; }
+
+  /* ============================================================
+     卡牌配色 = 稀有度
+     ------------------------------------------------------------
+     稀有度是卡牌最主要的视觉信息，因此边框、卡名与类型文字都由稀有度
+     统一决定。这三条规则写在上面「按类型着色」之后，权重相同（0,2,0）
+     故后者生效，从而覆盖掉按类型分配的颜色。
+
+     卡牌底色刻意保持中性（沿用 .card 的 #2a2a35），只有稀有卡额外加一层
+     内发光 —— 若给每个稀有度都换底色，描述文字的可读性会被拖低。
+
+     若想改某个稀有度的观感，只需改这里的 border-color / card-name
+     / card-type 三个值即可。
+     ============================================================ */
+  .card.rarity-common { border-color: #7d8794; }
+  .card.rarity-common .card-name { color: #b8c2cf; }
+  .card.rarity-common .card-type { color: #7d8794; }
+
+  .card.rarity-uncommon { border-color: #3fa89a; }
+  .card.rarity-uncommon .card-name { color: #6fd3c7; }
+  .card.rarity-uncommon .card-type { color: #4f9d94; }
+
+  .card.rarity-rare { border-color: #d4af37; }
+  .card.rarity-rare .card-name { color: #ffd966; }
+  .card.rarity-rare .card-type { color: #c9a63c; }
+  .card.rarity-rare { box-shadow: inset 0 0 18px rgba(255,215,0,0.12); }
+
+  .card.rarity-epic { border-color: #a259e6; }
+  .card.rarity-epic .card-name { color: #c07bff; }
+  .card.rarity-epic .card-type { color: #9a6ac4; }
+  .card.rarity-epic { box-shadow: inset 0 0 20px rgba(170,90,240,0.16); }
+  .card.rarity-epic .card-rarity {
+    border-color: #7d3fb8; color: #c07bff;
+    background: rgba(60,20,90,0.5);
+    box-shadow: 0 0 8px rgba(170,90,240,0.35);
+  }
+
+  /* ----- 已升级的卡牌：卡名变绿，并在名字后带「 +」 -----
+     名字里的加号由 JS 生成（CardDisplayName），这里只负责配色。
+     说明：稀有度规则 .card.rarity-* .card-name 权重为 (0,3,0)，
+     升级规则 .card.upgraded .card-name 同为 (0,3,0) 且写在后面 ——
+     本可以用「后者生效」来覆盖，但为了让「升级必然变绿」这条视觉
+     约定不被将来新增的稀有度规则破坏，这里显式使用 !important。 */
+  .card.upgraded .card-name { color: #6ef07a !important; }
+  .card.upgraded { border-color: #4fbf58 !important; }
+  /* 不可打出的诅咒牌 */
+  .card.unplayable-card { opacity: 0.75; filter: saturate(0.5); }
+  .card.unplayable-card .card-name { color: #b06a6a !important; }
 
   /* ----- 底部栏 ----- */
   #bottomBar {
@@ -552,6 +779,9 @@
   .btn.primary:hover { background: #447744; }
   .btn.ghost { background: #222; border-color: #444; color: #aaa; }
   .btn.ghost:hover { background: #333; color: #ddd; }
+  /* 升级入口按钮：绿色系，与「升级后卡名变绿」呼应 */
+  .btn.upgrade { background: #1f3a24; border-color: #4fbf58; color: #9df0a4; }
+  .btn.upgrade:hover { background: #2b5233; color: #c8ffcf; }
   .btn.small { padding: 7px 16px; font-size: 12px; }
 
   /* ----- 日志 ----- */
@@ -644,50 +874,75 @@
   #battleNum.boss-num { color: #ff6644; text-shadow: 0 0 12px rgba(255,100,60,0.6); }
 
   /* ============================================================
-     分辨率自适应 —— 整幅画布等比缩放
+     分辨率自适应 —— 整幅画布等比缩放并严格居中
      ------------------------------------------------------------
      设计尺寸固定为 1100 x 720。这里把整幅画面当作一张"画布"整体
      transform 缩放，因此前面 300 多处设计像素值全部保持原样不动，
-     排版比例与手感和原版完全一致。
+     排版比例与手感与原版完全一致。
 
-     缩放比例 --game-scale 由 responsive.js 计算后写到 :root 上，
-     默认值 1 保证脚本执行前（或 JS 被禁用时）仍是原来的 1:1 呈现，
-     属于渐进增强，不会出现样式闪烁。
+     留白：--game-margin 是画面四周与浏览器窗口之间的空隙，四边等值。
+       这个值只需改这一处 —— Responsive.js 会在运行时读取它，从窗口
+       尺寸里扣掉后再算缩放系数（读不到时用内置兜底值 32px）。
+       这样不会出现 CSS 与 JS 各写一份常量、数值对不上的问题。
 
-     为什么能适配任意分辨率：
-       #stage 的布局尺寸写成 calc(1100px * var(--game-scale))，
-       与 transform 缩放倍数严格一致。于是"布局盒尺寸 = 视觉尺寸"，
-       不会被任何视口裁掉；body 的 flex 居中作用在这个正确尺寸的
-       盒子上，结果就是精确居中 + 自动留边（letterbox）。
+     缩放后的实际占用尺寸（由 Responsive.js 计算得出）：
+       · 宽度 = 1100 * s
+       · 高度 =  720 * s
+       其中 s = min((窗口宽 - 2*边距) / 1100, (窗口高 - 2*边距) / 720, 1.75)。
+       宽高比恒为 1100:720，画面不会被拉伸或裁切。
 
-       若把 #stage 写死成 1100x720，在小于 1100 的视口里 flex 居中
-       会让元素同时向左、向上溢出并被 overflow 裁掉，视觉中心随之
-       偏移 —— 这正是本方案要避免的陷阱。
+       上限 1.75：窗口够大就按 175% 显示（高分屏上画面明显更大），
+       窗口装不下则取窗口允许的最大值 —— 因此画布始终完整可见，
+       放大后也不会溢出被裁掉。
+
+       窄窗口下宽度贴边、上下留白；宽窗口下高度贴边、左右留白。两种情况
+       都在某个方向"尽可能贴近窗口"，同时始终保留 --game-margin 的空隙。
+       固定宽高比的画面无法在宽、高两个方向同时贴边，这是几何限制。
+
+     居中方式（重要）：
+       #stage 保持设计尺寸 1100x720 不变，用
+           left:50%; top:50%; transform: translate(-50%,-50%) scale(s)
+       把它钉在视口正中心。
+
+       为什么不靠 body 的 flex 居中：
+       flex 居中的准确性取决于"元素的布局尺寸恰好等于它的视觉尺寸"。
+       一旦两者不一致（例如舞台写成定值、或 body 带 padding），
+       元素就会同时向左/向上溢出并被 overflow 裁掉，视觉中心随之偏移。
+       这里改用 fixed 定位 + translate(-50%,-50%)：百分比位移按元素自身
+       尺寸计算，与布局流程、父容器 padding、内容宽度全部无关，
+       因此在任意分辨率下都严格居中。
+
+       注意 transform 顺序必须是 translate 在前、scale 在后：
+       这样先按"未缩放的 1100x720"位移到中心，再就地等比缩放，
+       因为缩放原点默认是元素中心，中心点不会移动。
+
+     说明：.screen 是画布的"设计基准"，宽高保持 1100x720 不动，真正的
+     自适应由 #stage 的整体缩放完成 —— 这样 .screen 内部那 300 多处
+     百分比（如 max-width:88%）才会继续以设计尺寸为基准，比例不走样。
 
      注意：这里刻意复用 .screen / #mainMenu / #tutorial / #game 这些
      原有选择器，不新增 #stage > * 之类更长权重，以免波及
      .hidden { display:none !important } 的隐藏逻辑。
      ============================================================ */
-  :root { --game-scale: 1; }
+  :root {
+    --game-scale: 1;      /* 缩放系数，由 Responsive.js 写入 */
+    --game-margin: 16px;  /* 画面四周留白：改这一处即可 */
+    --design-w: 1100px;   /* 设计基准宽，需与 .screen 一致 */
+    --design-h: 720px;    /* 设计基准高，需与 .screen 一致 */
+  }
 
-  /* 舞台：布局尺寸 = 缩放后的画布尺寸，内部坐标仍是 1100x720 设计尺寸 */
   #stage {
-    position: relative;
-    flex: 0 0 auto;
-    width:  calc(1100px * var(--game-scale));
-    height: calc(720px  * var(--game-scale));
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width:  var(--design-w);
+    height: var(--design-h);
+    transform: translate(-50%, -50%) scale(var(--game-scale, 1));
     transform-origin: center center;
   }
 
-  /* 三个界面填满舞台，保持各自的层叠与绝对定位基准 */
-  #mainMenu, #tutorial, #game {
-    position: absolute; top: 0; left: 0;
-    transform-origin: center center;
-  }
+  /* 三个界面铺满舞台，各自保持原有层叠与绝对定位基准 */
+  #mainMenu, #tutorial, #game { position: absolute; top: 0; left: 0; }
 
-  /* 只对当前显示的界面施加缩放，避免给隐藏界面留多余的合成层。
-     .hidden 使用 display:none !important，因此这里无需 !important 也能共存。 */
-  .screen:not(.hidden) { transform: scale(var(--game-scale)); }
-
-  /* 极窄视口下不让画布贴死边缘 */
-  body { padding: 8px; }
+  /* 不再改动 body：原本的 flex 居中与无内边距状态保持原样，
+     居中改由上面 #stage 的 fixed + translate 保证。 */

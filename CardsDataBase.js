@@ -1,54 +1,278 @@
 // ============================================================
-//  杀戮奶蛙 · 核心游戏逻辑 v2.0
+//  杀戮奶蛙 · 卡牌数据库
+// ============================================================
+//  命名约定：
+//    · 对象的 key 一律使用英文 ID（如 strike / defend / giggle）
+//      内部逻辑、牌组存储、初始卡组全部只认 ID，避免中文参与代码逻辑。
+//    · 面向玩家的中文名放在每张卡的 name 字段，渲染时才取用
+//      （见 GameManager.js 的 createCardElement / cardDisplayName）。
+//
+//  rarity：common 普通 | uncommon 罕见 | rare 稀有 | epic 史诗
+//    只影响随机奖励的抽取权重与卡面配色，不影响卡牌效果本身。
+//
+//  maxUpgrade：可升级次数
+//    0 = 不可升级；1 = 只能单次升级；2 = 可多次升级（目前上限 2）
+//
+//  upgrade：描述每级升级带来的数值变化，例如 { dmg: 3 } 表示伤害 +3。
+//    同时会用于生成升级后的卡面描述，保证「文字与实际效果一致」。
+//
+//  base：基础数值。卡牌效果一律读 CardValues(id, level) 计算后的值，
+//    不要在 effect 里写死数字，否则升级后文字与实际伤害会脱节。
 // ============================================================
 
-// ---------- 卡牌数据库 ----------
-const CARD_DB = {
-  // 攻击
-  '咯咯笑':   { cost: 1, type: 'attack', laugh: true,  desc: '造成 6 点伤害。狂笑 +1。',
-                effect: () => { dealDamage(6); addLaugh(1); } },
-  '捧腹':     { cost: 2, type: 'attack', laugh: true,  desc: '造成 12 点伤害。狂笑 +2。',
-                effect: () => { dealDamage(12); addLaugh(2); } },
-  '笑到脱力': { cost: 3, type: 'attack', laugh: true,  desc: '造成 20 点伤害。若狂笑 ≥6，改为 30 点。狂笑 +3。',
-                effect: () => { dealDamage(S.laugh >= 6 ? 30 : 20); addLaugh(3); } },
-  '喷笑':     { cost: 1, type: 'attack', laugh: true,  desc: '造成 4 点伤害 2 次。狂笑 +1。',
-                effect: () => { dealDamage(4); if (!S.gameOver) dealDamage(4); addLaugh(1); } },
-  '笑到岔气': { cost: 2, type: 'attack', laugh: true,  desc: '造成 8 点伤害。若狂笑 ≥6，抽 2 张牌。',
-                effect: () => { dealDamage(8); if (S.laugh >= 6) drawCards(2); } },
-  '爆笑':     { cost: 3, type: 'attack', laugh: false, desc: '造成 狂笑值 × 3 的伤害。',
-                effect: () => { dealDamage(S.laugh * 3); } },
-  '笑里藏刀': { cost: 0, type: 'attack', laugh: true, exhaust: true, desc: '造成 3 点伤害。狂笑 +1。消耗。',
-                effect: () => { dealDamage(3); addLaugh(1); } },
-
-  // 技能
-  '奶油肚皮': { cost: 1, type: 'skill', laugh: false, desc: '获得 8 点格挡。',
-                effect: () => { addBlock(8); } },
-  '缩成一团': { cost: 1, type: 'skill', laugh: false, desc: '获得 5 点格挡。抽 1 张牌。',
-                effect: () => { addBlock(5); drawCards(1); } },
-  '笑到打滚': { cost: 2, type: 'skill', laugh: true,  desc: '获得 12 点格挡。狂笑 +1。',
-                effect: () => { addBlock(12); addLaugh(1); } },
-  '憋笑':     { cost: 1, type: 'skill', laugh: false, desc: '获得 6 点格挡。狂笑 -1。',
-                effect: () => { addBlock(6); addLaugh(-1); } },
-  '笑到最后': { cost: 2, type: 'skill', laugh: false, desc: '获得 狂笑值 × 2 点格挡。',
-                effect: () => { addBlock(S.laugh * 2); } },
-  '忍不住了': { cost: 0, type: 'skill', laugh: true,  desc: '狂笑 +2。抽 1 张牌。',
-                effect: () => { addLaugh(2); drawCards(1); } },
-  '笑气':     { cost: 1, type: 'skill', laugh: true,  desc: '狂笑 +3。获得 3 点格挡。',
-                effect: () => { addLaugh(3); addBlock(3); } },
-  '偷着乐':   { cost: 1, type: 'skill', laugh: false, desc: '抽 2 张牌。',
-                effect: () => { drawCards(2); } },
-  '哈哈大笑': { cost: 2, type: 'skill', laugh: true,  desc: '狂笑 +4。抽 1 张牌。',
-                effect: () => { addLaugh(4); drawCards(1); } },
-
-  // 能力
-  '狂笑不止': { cost: 2, type: 'power', laugh: false, desc: '每回合结束时，狂笑 +1。',
-                effect: () => { S.powers.laughPerTurn = (S.powers.laughPerTurn || 0) + 1; } },
-  '肚皮鼓胀': { cost: 2, type: 'power', laugh: false, desc: '每当你获得格挡时，额外获得 3 点格挡。',
-                effect: () => { S.powers.extraBlock = (S.powers.extraBlock || 0) + 3; } },
-  '笑点爆炸': { cost: 2, type: 'power', laugh: false, desc: '每当你狂笑值增加时，对敌人造成 2 点伤害。',
-                effect: () => { S.powers.laughDamage = (S.powers.laughDamage || 0) + 2; } },
-  '笑神经强化': { cost: 3, type: 'power', laugh: false, desc: '笑点上限 +1。本回合笑点 +1。',
-                effect: () => { S.lpMax += 1; S.lp += 1; } },
+// 稀有度元数据（名称 / 颜色 / 排序），供 UI 与奖励面板共用
+const CARD_RARITY = {
+  common:   { key: 'common',   label: '普通', color: '#9aa4b0' },
+  uncommon: { key: 'uncommon', label: '罕见', color: '#6fd3c7' },
+  rare:     { key: 'rare',     label: '稀有', color: '#ffd966' },
+  epic:     { key: 'epic',     label: '史诗', color: '#c07bff' },
 };
 
+// 稀有度展示顺序（由低到高）
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic'];
 
+// 卡牌类型的中文名（渲染时用）
+const CARD_TYPE_LABEL = { attack: '攻击', skill: '技能', power: '能力' };
+
+// ---------- 卡牌数值工具 ----------
+// 取某张卡在指定升级等级下的数值。base 与 upgrade 逐项相加。
+// 例：strike base {dmg:6} upgrade {dmg:3} -> level0 6, level1 9, level2 12
+function CardValues(id, level = 0) {
+  const def = CARD_DB[id];
+  if (!def) return {};
+  const out = Object.assign({}, def.base || {});
+  const up = def.upgrade || {};
+  for (let i = 0; i < level; i++) {
+    for (const k in up) out[k] = (out[k] || 0) + up[k];
+  }
+  return out;
+}
+
+// 取卡牌在指定等级下应该显示的名字：升级过就加「 +」
+// 例：打击 -> 打击 +（加号前保留一个空格）
+function CardDisplayName(id, level = 0) {
+  const def = CARD_DB[id];
+  const base = def ? def.name : id;
+  return level > 0 ? base + ' +' : base;
+}
+
+const CARD_DB = {
+  // ============================================================
+  //  基础牌（起手牌组的骨架）
+  // ============================================================
+  strike: {
+    name: '打击', cost: 1, type: 'attack', rarity: 'common', maxUpgrade: 2,
+    laugh: false, base: { dmg: 6 }, upgrade: { dmg: 3 },
+    desc: v => `造成 ${v.dmg} 点伤害。`,
+    effect: (S, v) => { dealDamage(v.dmg); },
+  },
+  defend: {
+    name: '防御', cost: 1, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    laugh: false, base: { block: 5 }, upgrade: { block: 3 },
+    desc: v => `获得 ${v.block} 点格挡。`,
+    effect: (S, v) => { addBlock(v.block); },
+  },
+
+  // ============================================================
+  //  攻击
+  // ============================================================
+  giggle: {
+    name: '咯咯笑', cost: 1, type: 'attack', rarity: 'common', maxUpgrade: 2,
+    laugh: true, base: { dmg: 6, laugh: 1 }, upgrade: { dmg: 3 },
+    desc: v => `造成 ${v.dmg} 点伤害。狂笑 +${v.laugh}。`,
+    effect: (S, v) => { dealDamage(v.dmg); addLaugh(v.laugh); },
+  },
+  belly_laugh: {
+    name: '捧腹', cost: 2, type: 'attack', rarity: 'common', maxUpgrade: 2,
+    laugh: true, base: { dmg: 12, laugh: 2 }, upgrade: { dmg: 4 },
+    desc: v => `造成 ${v.dmg} 点伤害。狂笑 +${v.laugh}。`,
+    effect: (S, v) => { dealDamage(v.dmg); addLaugh(v.laugh); },
+  },
+  laugh_exhausted: {
+    name: '笑到脱力', cost: 3, type: 'attack', rarity: 'uncommon', maxUpgrade: 1,
+    laugh: true, base: { dmg: 20, bonus: 30, laugh: 3, threshold: 6 }, upgrade: { dmg: 5, bonus: 5 },
+    desc: v => `造成 ${v.dmg} 点伤害。若狂笑 ≥${v.threshold}，改为 ${v.bonus} 点。狂笑 +${v.laugh}。`,
+    effect: (S, v) => { dealDamage(S.laugh >= v.threshold ? v.bonus : v.dmg); addLaugh(v.laugh); },
+  },
+  spit_laugh: {
+    name: '喷笑', cost: 1, type: 'attack', rarity: 'uncommon', maxUpgrade: 2,
+    laugh: true, base: { dmg: 4, hits: 2, laugh: 1 }, upgrade: { dmg: 2 },
+    desc: v => `造成 ${v.dmg} 点伤害 ${v.hits} 次。狂笑 +${v.laugh}。`,
+    effect: (S, v) => { for (let i = 0; i < v.hits && !S.gameOver; i++) dealDamage(v.dmg); addLaugh(v.laugh); },
+  },
+  laugh_wheeze: {
+    name: '笑到岔气', cost: 2, type: 'attack', rarity: 'common', maxUpgrade: 2,
+    laugh: true, base: { dmg: 8, draw: 2, threshold: 6 }, upgrade: { dmg: 3 },
+    desc: v => `造成 ${v.dmg} 点伤害。若狂笑 ≥${v.threshold}，抽 ${v.draw} 张牌。`,
+    effect: (S, v) => { dealDamage(v.dmg); if (S.laugh >= v.threshold) drawCards(v.draw); },
+  },
+  big_laugh: {
+    name: '爆笑', cost: 3, type: 'attack', rarity: 'rare', maxUpgrade: 1,
+    laugh: false, base: { mult: 3 }, upgrade: { mult: 1 },
+    desc: v => `造成 狂笑值 × ${v.mult} 的伤害。`,
+    effect: (S, v) => { dealDamage(S.laugh * v.mult); },
+  },
+  knife_in_laugh: {
+    name: '笑里藏刀', cost: 0, type: 'attack', rarity: 'rare', maxUpgrade: 1,
+    laugh: true, exhaust: true, base: { dmg: 3, laugh: 1 }, upgrade: { dmg: 3 },
+    desc: v => `造成 ${v.dmg} 点伤害。狂笑 +${v.laugh}。消耗。`,
+    effect: (S, v) => { dealDamage(v.dmg); addLaugh(v.laugh); },
+  },
+
+  // ============================================================
+  //  技能
+  // ============================================================
+  cream_belly: {
+    name: '奶油肚皮', cost: 1, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    laugh: false, base: { block: 8 }, upgrade: { block: 3 },
+    desc: v => `获得 ${v.block} 点格挡。`,
+    effect: (S, v) => { addBlock(v.block); },
+  },
+  curl_up: {
+    name: '缩成一团', cost: 1, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    laugh: false, base: { block: 5, draw: 1 }, upgrade: { block: 3 },
+    desc: v => `获得 ${v.block} 点格挡。抽 ${v.draw} 张牌。`,
+    effect: (S, v) => { addBlock(v.block); drawCards(v.draw); },
+  },
+  roll_laughing: {
+    name: '笑到打滚', cost: 2, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    laugh: true, base: { block: 12, laugh: 1 }, upgrade: { block: 4 },
+    desc: v => `获得 ${v.block} 点格挡。狂笑 +${v.laugh}。`,
+    effect: (S, v) => { addBlock(v.block); addLaugh(v.laugh); },
+  },
+  hold_laugh: {
+    name: '憋笑', cost: 1, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
+    laugh: false, base: { block: 6, laugh: -1 }, upgrade: { block: 3 },
+    desc: v => `获得 ${v.block} 点格挡。狂笑 ${v.laugh}。`,
+    effect: (S, v) => { addBlock(v.block); addLaugh(v.laugh); },
+  },
+  laugh_last: {
+    name: '笑到最后', cost: 2, type: 'skill', rarity: 'uncommon', maxUpgrade: 1,
+    laugh: false, base: { mult: 2 }, upgrade: { mult: 1 },
+    desc: v => `获得 狂笑值 × ${v.mult} 点格挡。`,
+    effect: (S, v) => { addBlock(S.laugh * v.mult); },
+  },
+  cant_hold: {
+    name: '忍不住了', cost: 0, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    laugh: true, base: { laugh: 2, draw: 1 }, upgrade: { laugh: 1 },
+    desc: v => `狂笑 +${v.laugh}。抽 ${v.draw} 张牌。`,
+    effect: (S, v) => { addLaugh(v.laugh); drawCards(v.draw); },
+  },
+  laughing_gas: {
+    name: '笑气', cost: 1, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    laugh: true, base: { laugh: 3, block: 3 }, upgrade: { laugh: 1, block: 2 },
+    desc: v => `狂笑 +${v.laugh}。获得 ${v.block} 点格挡。`,
+    effect: (S, v) => { addLaugh(v.laugh); addBlock(v.block); },
+  },
+  snicker: {
+    name: '偷着乐', cost: 1, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
+    laugh: false, base: { draw: 2 }, upgrade: { draw: 1 },
+    desc: v => `抽 ${v.draw} 张牌。`,
+    effect: (S, v) => { drawCards(v.draw); },
+  },
+  guffaw: {
+    name: '哈哈大笑', cost: 2, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
+    laugh: true, base: { laugh: 4, draw: 1 }, upgrade: { laugh: 2 },
+    desc: v => `狂笑 +${v.laugh}。抽 ${v.draw} 张牌。`,
+    effect: (S, v) => { addLaugh(v.laugh); drawCards(v.draw); },
+  },
+
+  // ============================================================
+  //  能力
+  // ============================================================
+  endless_laugh: {
+    name: '狂笑不止', cost: 2, type: 'power', rarity: 'common', maxUpgrade: 1,
+    laugh: false, base: { laughPerTurn: 1 }, upgrade: { laughPerTurn: 1 },
+    desc: v => `每回合结束时，狂笑 +${v.laughPerTurn}。`,
+    effect: (S, v) => { S.powers.laughPerTurn = (S.powers.laughPerTurn || 0) + v.laughPerTurn; },
+  },
+  belly_swell: {
+    name: '肚皮鼓胀', cost: 2, type: 'power', rarity: 'uncommon', maxUpgrade: 1,
+    laugh: false, base: { extraBlock: 3 }, upgrade: { extraBlock: 2 },
+    desc: v => `每当你获得格挡时，额外获得 ${v.extraBlock} 点格挡。`,
+    effect: (S, v) => { S.powers.extraBlock = (S.powers.extraBlock || 0) + v.extraBlock; },
+  },
+  laugh_burst: {
+    name: '笑点爆炸', cost: 2, type: 'power', rarity: 'uncommon', maxUpgrade: 1,
+    laugh: false, base: { laughDamage: 2 }, upgrade: { laughDamage: 2 },
+    desc: v => `每当你狂笑值增加时，对敌人造成 ${v.laughDamage} 点伤害。`,
+    effect: (S, v) => { S.powers.laughDamage = (S.powers.laughDamage || 0) + v.laughDamage; },
+  },
+  nerve_boost: {
+    name: '笑神经强化', cost: 3, type: 'power', rarity: 'rare', maxUpgrade: 1,
+    laugh: false, base: { lpMax: 1 }, upgrade: { lpMax: 1 },
+    desc: v => `笑点上限 +${v.lpMax}。本回合笑点 +${v.lpMax}。`,
+    effect: (S, v) => { S.lpMax += v.lpMax; S.lp += v.lpMax; },
+  },
+
+  // ============================================================
+  //  史诗（强力但有代价）
+  // ============================================================
+  laughstorm: {
+    name: '笑暴风', cost: 3, type: 'attack', rarity: 'epic', maxUpgrade: 1,
+    laugh: true, base: { dmg: 10, hits: 3, laugh: 2 }, upgrade: { dmg: 4 },
+    desc: v => `造成 ${v.dmg} 点伤害 ${v.hits} 次。狂笑 +${v.laugh}。`,
+    effect: (S, v) => { for (let i = 0; i < v.hits && !S.gameOver; i++) dealDamage(v.dmg); addLaugh(v.laugh); },
+  },
+  laugh_to_death: {
+    name: '笑死我了', cost: 2, type: 'attack', rarity: 'epic', maxUpgrade: 1,
+    laugh: true, base: { mult: 4, selfDamage: 4 }, upgrade: { mult: 1, selfDamage: -1 },
+    desc: v => `造成 狂笑值 × ${v.mult} 的伤害，自身失去 ${v.selfDamage} 点生命。`,
+    effect: (S, v) => {
+      dealDamage(S.laugh * v.mult);
+      S.playerHp = Math.max(0, S.playerHp - v.selfDamage);
+      logMsg(`狂笑反噬，奶蛙失去 ${v.selfDamage} 点生命。`, 'dmg');
+      renderPlayer();
+      if (S.playerHp <= 0) loseBattle();
+    },
+  },
+  armor_of_joy: {
+    name: '喜极而泣', cost: 2, type: 'skill', rarity: 'epic', maxUpgrade: 2,
+    laugh: false, base: { block: 14, laugh: -2 }, upgrade: { block: 5 },
+    desc: v => `获得 ${v.block} 点格挡。狂笑 ${v.laugh}。`,
+    effect: (S, v) => { addBlock(v.block); addLaugh(v.laugh); },
+  },
+  perfect_calm: {
+    name: '心如止水', cost: 1, type: 'skill', rarity: 'epic', maxUpgrade: 1,
+    laugh: false, base: { block: 10 }, upgrade: { block: 5 },
+    desc: v => `获得 ${v.block} 点格挡。狂笑值归零。`,
+    effect: (S, v) => {
+      addBlock(v.block);
+      // 直接把狂笑值归零，而不是 addLaugh(-S.laugh)：
+      // 后者依赖当前值、语义不直观，且会触发「笑点爆炸」的增伤判定。
+      S.laugh = 0;
+      renderLaughMeter();
+      logMsg('奶蛙屏息凝神，狂笑值归零。', 'block');
+    },
+  },
+  laugh_engine: {
+    name: '笑能核心', cost: 3, type: 'power', rarity: 'epic', maxUpgrade: 1,
+    laugh: false, base: { laughPerTurn: 2, laughDamage: 1 }, upgrade: { laughPerTurn: 1 },
+    desc: v => `每回合结束时狂笑 +${v.laughPerTurn}。每当你狂笑值增加时，对敌人造成 ${v.laughDamage} 点伤害。`,
+    effect: (S, v) => {
+      S.powers.laughPerTurn = (S.powers.laughPerTurn || 0) + v.laughPerTurn;
+      S.powers.laughDamage = (S.powers.laughDamage || 0) + v.laughDamage;
+    },
+  },
+
+  // ============================================================
+  //  诅咒（不可升级，作为史诗牌的代价）
+  // ============================================================
+  belly_ache: {
+    name: '笑到肚子疼', cost: 0, type: 'skill', rarity: 'epic', maxUpgrade: 0,
+    laugh: false, unplayable: true, base: {}, upgrade: {},
+    desc: () => `无法打出。这张牌只会占用手牌。`,
+    effect: () => {},
+  },
+};
+
+// ---------- 按稀有度分组（奖励抽取用） ----------
+function cardIdsByRarity() {
+  const out = { common: [], uncommon: [], rare: [], epic: [] };
+  for (const id of Object.keys(CARD_DB)) {
+    const r = CARD_DB[id].rarity || 'common';
+    if (!out[r]) out[r] = [];
+    out[r].push(id);
+  }
+  return out;
+}
