@@ -525,6 +525,11 @@
 
   /* 盛碗奶蛙（BOSS）外观 */
   #enemySprite.boss { width: 160px; height: 180px; }
+  /* BOSS 的碗头盔（top:-46px）、皇冠（top:-68px）、眩晕图标（top:-70px）
+     都画在 sprite 盒子**上方**，属于溢出绘制。给容器预留出这段高度，
+     否则在窗口变矮、战场被压缩时，这些装饰会压到上方的意图文字上。
+     需求高度 = 70(最高装饰) + 24(眩晕图标自身) ≈ 94px，留一些余量取 100px。 */
+  #enemySpriteWrap:has(#enemySprite.boss) { padding-top: 100px; }
   #enemySprite.boss .enemy-body {
     width: 130px; height: 140px;
     background: #d8b84a;
@@ -645,7 +650,10 @@
 
   /* ----- 状态悬浮说明 -----
      鼠标停留在状态徽章上时出现，移出即消失（逻辑见 makeStatusBadge）。
-     位置由 JS 计算后写入 inline 的 left/top，这里只负责外观。 */
+     位置由 JS 计算后写入 inline 的 left/top —— 用的是 getBoundingClientRect()
+     的视口坐标，因此本元素必须是 body 的直接子节点（在 #stage 之外）。
+     若放回 #stage 内，#stage 的 transform 会让 position:fixed 以它为包含块，
+     坐标基准就与 JS 不一致，提示框会跑偏并被立绘挡住。 */
   #statusTip {
     display: none;
     position: fixed;

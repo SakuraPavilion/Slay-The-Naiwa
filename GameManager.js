@@ -1006,14 +1006,27 @@ function upgradeMasterDeckCard(index) {
 }
 
 // ============================================================
-//  升级预览（手牌右键）
+//  升级预览（手牌 / 牌组界面通用）
 // ============================================================
-// 右键手牌查看「升级后」的卡牌信息：左右并排显示当前与升级后的卡面，
-// 便于在升级前判断收益。不可升级或已满级时给出文字说明。
+// 查看「升级后」的卡牌信息：左右并排显示当前与升级后的卡面，
+// 便于在升级或删除前判断收益。不可升级或已满级时给出文字说明。
+//
+// 两个入口：
+//   previewUpgrade(handIndex)      —— 手牌用下标
+//   previewUpgradeCard(id, level)  —— 牌组类界面用 id + 等级
+//     （升级 / 删除界面会重建列表，下标不稳定，用 id+level 更可靠）
 function previewUpgrade(handIndex) {
   const card = S.hand[handIndex];
   if (!card) return;
+  showUpgradePreview(card);
+}
 
+function previewUpgradeCard(id, level) {
+  showUpgradePreview(makeCard({ id, level: level || 0 }));
+}
+
+// 升级预览的公共实现
+function showUpgradePreview(card) {
   const def = CARD_DB[card.id];
   const maxUp = def ? (def.maxUpgrade || 0) : 0;
   const level = card.level || 0;
@@ -1053,9 +1066,11 @@ function openRemoveView() {
   }
 
   S.masterDeck.forEach((entry, index) => {
+    const { id, level } = normalizeDeckEntry(entry);
     const el = createCardElement(makeCard(entry), { interactive: true });
-    el.title = '点击从牌组中移除这张卡';
-    el.onclick = () => removeDeckCard(index);
+    el.title = '点击移除这张卡；长按 / 右键查看升级后';
+    // 点按删除；长按 / 右键查看升级后（决定该不该删时最需要这个信息）
+    initDeckCardGesture(el, id, level, () => removeDeckCard(index));
     container.appendChild(el);
   });
   document.getElementById('removeView').classList.add('show');
@@ -1079,7 +1094,6 @@ function removeDeckCard(index) {
 //  升级界面
 // ============================================================
 // 打开升级界面：列出牌组里所有还能升级的卡，点击即可升级一张。
-// 打开升级界面：列出牌组里所有还能升级的卡，点击即可升级一张。
 // opts.choiceKind：
 //   'rest'   —— 休息处入口，升级后消耗一次休息选择次数
 //   'reward' —— 奖励房间入口（默认），升级后留在奖励面板
@@ -1095,12 +1109,13 @@ function openUpgradeView(opts = {}) {
     if (!def || maxUp === 0 || level >= maxUp) return;   // 不可升级或已满级
     shown++;
     const el = createCardElement(makeCard(entry), { interactive: true });
-    el.title = '点击升级这张卡';
-    el.onclick = () => {
+    el.title = '点击升级这张卡；长按 / 右键查看升级后';
+    // 点按升级；长按 / 右键查看升级后（升级前最需要确认收益）
+    initDeckCardGesture(el, id, level, () => {
       if (!upgradeMasterDeckCard(index)) { openUpgradeView({ choiceKind }); return; }
       document.getElementById('upgradeView').classList.remove('show');
       if (choiceKind === 'rest') resolveRestChoice();
-    };
+    });
     container.appendChild(el);
   });
 
@@ -1276,7 +1291,8 @@ configureRenderManager({
   handlers: {
     describeMove: getMoveDesc,
     playCard: playCard,
-    previewUpgrade: previewUpgrade,   // 手牌右键 -> 升级预览
+    previewUpgrade: previewUpgrade,          // 手牌右键/长按 -> 升级预览
+    previewUpgradeCard: previewUpgradeCard,  // 升级/删除界面右键/长按 -> 升级预览
   },
 });
 

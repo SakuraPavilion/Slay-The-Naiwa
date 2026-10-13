@@ -314,15 +314,21 @@ const LONG_PRESS_MOVE_TOL = 12;
 // 声明放在使用它的手势函数之前，避免 let 的暂时性死区。
 let __lastLongPressAt = 0;
 function lastLongPressAt() { return __lastLongPressAt; }
-// 长按与右键共用同一条预览入口
+// 长按与右键共用同一条预览入口（按手牌下标）
 function firePreviewUpgrade(index) {
   if (__rmHandlers.previewUpgrade) __rmHandlers.previewUpgrade(index);
 }
+// 同上，但按「卡牌 id + 当前等级」预览，供牌组类界面（升级 / 删除）使用
+function firePreviewCard(id, level) {
+  if (__rmHandlers.previewUpgradeCard) __rmHandlers.previewUpgradeCard(id, level);
+}
 
-// 给一张手牌装上「点按出牌 / 长按预览」的手势。
+// 通用的「点按 / 长按 / 右键」手势装配。
+//   onTap(el)    —— 短按（真正的点击）时的行为
+//   onPreview()  —— 长按到阈值 / 右键时的行为
 // 关键点：长按触发后必须吃掉随后的 click ——
-// 触摸设备在抬手时一定会补发 click，否则长按查看完就会把牌打出去。
-function initHandCardGesture(el, index) {
+// 触摸设备在抬手时一定会补发 click，否则长按查看完就会把牌打出去/升掉/删掉。
+function initCardGesture(el, { onTap, onPreview }) {
   let timer = null;
   let startX = 0, startY = 0;
   let longPressed = false;
@@ -344,7 +350,7 @@ function initHandCardGesture(el, index) {
       __lastLongPressAt = Date.now();
       // 轻触反馈：让用户知道手势已被识别
       if (navigator.vibrate) { try { navigator.vibrate(12); } catch (err) {} }
-      firePreviewUpgrade(index);
+      if (onPreview) onPreview();
     }, ms);
   });
 
@@ -360,15 +366,32 @@ function initHandCardGesture(el, index) {
   el.addEventListener('pointerleave', clear);
 
   el.onclick = () => {
-    // 长按已经打开预览，这次 click 属于同一手势的收尾，不能当成出牌
+    // 长按已经打开预览，这次 click 属于同一手势的收尾，不能当成短按行为
     if (longPressed) { longPressed = false; return; }
-    if (__rmHandlers.playCard) __rmHandlers.playCard(index);
+    if (onTap) onTap(el);
   };
   // 右键：桌面端的预览入口
   el.oncontextmenu = (e) => {
     e.preventDefault();
-    firePreviewUpgrade(index);
+    if (onPreview) onPreview();
   };
+}
+
+// 手牌的便捷包装：点按出牌、长按/右键预览升级
+function initHandCardGesture(el, index) {
+  initCardGesture(el, {
+    onTap: () => { if (__rmHandlers.playCard) __rmHandlers.playCard(index); },
+    onPreview: () => firePreviewUpgrade(index),
+  });
+}
+
+// 牌组类界面（升级 / 删除）的包装：点按执行该界面的行为、长按/右键预览升级。
+// 这里统一用卡牌 id + 等级取预览，不依赖重建列表时的下标。
+function initDeckCardGesture(el, id, level, onTap) {
+  initCardGesture(el, {
+    onTap: () => { if (onTap) onTap(); },
+    onPreview: () => firePreviewCard(id, level),
+  });
 }
 
 function renderHand() {

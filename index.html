@@ -103,8 +103,9 @@
       <div class="tut-card">
         <h2>🖱 升级预览</h2>
         <p>在战斗中<b>右键点击</b>手牌，或在触摸屏上<b>长按</b>手牌，即可查看这张卡<b>升级后</b>的样子：当前卡面与升级后卡面左右并排对比。</p>
+        <p><b>升级界面与删除界面同样支持</b>：在那两个界面里右键 / 长按任意一张卡，即可在决定升级或删除前先看清升级后的收益。</p>
         <p>不可升级或已达最高等级的卡牌会给出文字说明。</p>
-        <p class="ghost-txt" style="font-size:11.5px;color:#888;">长按不会打出卡牌；手指滑动超过一小段距离会取消长按。</p>
+        <p class="ghost-txt" style="font-size:11.5px;color:#888;">长按不会打出、升级或删除卡牌；手指滑动超过一小段距离会取消长按。</p>
       </div>
 
       <div class="tut-card">
@@ -298,7 +299,7 @@
   <div class="modal" id="removeView">
     <div class="modal-content">
       <div class="modal-title">删除一张卡牌</div>
-      <div class="modal-sub">点击卡牌即可从牌组中<b>永久移除</b>，用于精简牌组。</div>
+      <div class="modal-sub">点击卡牌即可从牌组中<b>永久移除</b>，用于精简牌组。<br><span style="color:#888;">右键 / 长按任意一张卡可先查看升级后的样子。</span></div>
       <div class="modal-cards" id="removeCards"></div>
       <div class="modal-actions">
         <button class="btn ghost" id="removeCancelBtn">取消</button>
@@ -312,16 +313,13 @@
   <div class="modal" id="upgradeView">
     <div class="modal-content">
       <div class="modal-title">升级一张卡牌</div>
-      <div class="modal-sub">点击卡牌即可升级。卡名变绿并追加「 +」以表示已升级。</div>
+      <div class="modal-sub">点击卡牌即可升级。卡名变绿并追加「 +」以表示已升级。<br><span style="color:#888;">右键 / 长按任意一张卡可先查看升级后的样子。</span></div>
       <div class="modal-cards" id="upgradeCards"></div>
       <div class="modal-actions">
         <button class="btn ghost" id="upgradeSkipBtn">跳过升级</button>
       </div>
     </div>
   </div>
-
-  <!-- 状态悬浮说明（鼠标移入徽章时显示，移出消失） -->
-  <div id="statusTip"></div>
 
   <!-- 牌堆查看弹窗 -->
   <div class="modal" id="pileView">
@@ -363,6 +361,15 @@
 
 </div>
 </div>
+
+<!-- 状态悬浮说明。
+     必须放在 #stage **外面**：#stage 带 transform: translate() scale()，
+     transform 会让内部的 position:fixed 以 #stage 自己的盒子为包含块，
+     而 showStatusTip() 用的是 getBoundingClientRect() 的视口坐标 ——
+     两者一旦混用，提示框就会偏离徽章、被 BOSS 立绘等元素挡住。
+     放在这里才是相对视口定位，与 JS 的算法一致。 -->
+<div id="statusTip"></div>
+
 
 <script src="CardsDataBase.js"></script>
 <script src="EnemiesDataBase.js"></script>
