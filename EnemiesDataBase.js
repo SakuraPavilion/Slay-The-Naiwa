@@ -41,7 +41,7 @@ const ENEMY_POOL_WEAK = [
     ]
   },
   {
-    name: '讥讽魔', hp: 58,
+    name: '讥讽魔', hp: 42,
     moves: [
       { name: '双嘲',   icon: '🗯️', type: 'attack', dmg: 6, hits: 2 },
       { name: '加固',   icon: '🛡️', type: 'block',  block: 10 },

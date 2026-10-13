@@ -209,7 +209,10 @@ function makeStatusBadge(key, value, extraClass) {
   el.className = STATUS_BADGE_CLASS +
     (def.good ? ' good' : ' bad') +
     (extraClass ? ' ' + extraClass : '');
-  el.textContent = `${def.icon} ${def.name}${value !== null && value !== undefined ? ' ' + def.sign + value : ''}`;
+  // 只有带 sign（如 '+'）的状态才显示数值。
+  // 像「大笑之王」这种开关型状态，sign 为空，显示「+1」只是噪音。
+  const showValue = def.sign && value !== null && value !== undefined;
+  el.textContent = `${def.icon} ${def.name}${showValue ? ' ' + def.sign + value : ''}`;
 
   // 悬浮窗只在鼠标停留于徽章范围内时显示；移出立即隐藏。
   // 另外补一个 click，方便触屏设备（没有 hover）查看。
@@ -265,26 +268,32 @@ function hideStatusTip() {
   if (tip) tip.classList.remove('show');
 }
 
-// 玩家状态：来自能力牌（powers）与笑点上限
+// 玩家状态：来自状态容器 S.states
+// （与敌方 S.enemy.states 结构一致，敌我通用；见 StatusDataBase.js 的说明）
+//
+// 这里刻意「遍历容器」而不是逐个 if 列举状态键：
+// 逐个列举意味着每新增一个状态都必须记得回来补一行，否则状态生效了却
+// 不显示（kingOfLaugh 就因此漏过一次）。遍历容器后，只要状态被施加
+// 就会自动出现在状态栏。
 function renderPlayerStatus() {
   const S = rmState();
-  const list = [];
-  const p = S.powers || {};
-  if (p.laughPerTurn) list.push({ key: 'laughPerTurn', value: p.laughPerTurn });
-  if (p.extraBlock)   list.push({ key: 'extraBlock',   value: p.extraBlock });
-  if (p.laughDamage)  list.push({ key: 'laughDamage',  value: p.laughDamage });
-  if (S.lpMax > 3)    list.push({ key: 'lpMax',        value: S.lpMax - 3 });
+  // activeStatuses 已过滤掉数值 <= 0 的条目
+  const list = activeStatuses(SIDE.player).map(s => ({ key: s.key, value: s.value }));
+  // 特例：笑点上限不在状态容器里，由 S.lpMax 推导（基线 3）
+  if (S.lpMax > 3) list.push({ key: 'lpMax', value: S.lpMax - 3 });
   renderStatusBadges(document.getElementById('playerStatus'), list);
 }
 
-// 敌人状态：力量 / 眩晕 / BOSS
+// 敌人状态：同样遍历容器，新增状态无需改这里
 function renderEnemyStatus() {
   const S = rmState();
   const list = [];
   if (!S.enemy) { renderStatusBadges(document.getElementById('enemyStatus'), list); return; }
-  if (S.enemy.strength > 0) list.push({ key: 'strength', value: S.enemy.strength });
-  if (S.enemy.stun > 0)     list.push({ key: 'stun', value: S.enemy.stun, extraClass: 'stun' });
-  if (S.enemy.isBoss)       list.push({ key: 'boss', value: null });
+  for (const s of activeStatuses(SIDE.enemy)) {
+    list.push({ key: s.key, value: s.value, extraClass: s.key === 'stun' ? 'stun' : undefined });
+  }
+  // BOSS 不是状态容器里的条目，单独附加
+  if (S.enemy.isBoss) list.push({ key: 'boss', value: null });
   renderStatusBadges(document.getElementById('enemyStatus'), list);
 }
 
@@ -342,14 +351,23 @@ function renderPiles() {
 // ============================================================
 //  战斗日志
 // ============================================================
+// 保留的最大行数：既是显示上限，也是可回看的历史长度
+const LOG_MAX_LINES = 60;
+
 function logMsg(text, cls) {
   const log = document.getElementById('log');
+  if (!log) return;
+  // 只有玩家本来就停在底部时才自动滚动；
+  // 如果玩家正在往上翻看旧消息，就保持他的位置不被打断。
+  const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 24;
+
   const div = document.createElement('div');
   if (cls) div.className = cls;
   div.textContent = text;
   log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-  while (log.children.length > 30) log.removeChild(log.firstChild);
+  while (log.children.length > LOG_MAX_LINES) log.removeChild(log.firstChild);
+
+  if (atBottom) log.scrollTop = log.scrollHeight;
 }
 
 // ============================================================
@@ -385,6 +403,142 @@ function triggerEnemyHit() {
   ps.style.filter = 'brightness(2)';
   setTimeout(() => ps.style.filter = '', 150);
 }
+
+// ============================================================
+//  滚动：隐藏滑动条 + 滚轮 / 拖动 / 触摸滑动
+// ============================================================
+// 对话框与教学页隐藏了滑动条（见 CSS），因此必须自己接管滚动输入，
+// 否则桌面端只能靠拖动浏览器滚动条 —— 而滚动条已经被隐藏了。
+//
+//   · 滚轮：容器能滚就滚动容器并阻止事件冒泡（页面不会跟着动）；
+//           容器到底后不再拦截，交回浏览器。
+//   · 触摸：手指上下滑动滚动容器（移动端）。
+//   · 鼠标拖动：按住拖动即可滚动；拖动位移超过阈值时抑制随后的 click，
+//           避免"想滚动却误选了一张卡"。
+function initSmoothScroll(el, opts = {}) {
+  if (!el || el.__smoothScroll) return;
+  const axis = opts.axis || 'y';
+  const horizontal = axis === 'x';
+  const drag = opts.drag !== false;
+  const dragSelector = opts.dragSelector || null;
+
+  // 累计滚轮增量 + rAF 节流：每帧只应用一次滚动，
+  // 避免高频滚轮事件导致跳变或卡顿。无 rAF 环境（如测试）则立即应用。
+  let wheelAccum = 0, wheelRaf = 0;
+  const hasRaf = typeof requestAnimationFrame === 'function';
+  function flushWheel() {
+    wheelRaf = 0;
+    const delta = wheelAccum;
+    wheelAccum = 0;
+    if (!delta) return;
+    if (horizontal) {
+      if (el.scrollWidth <= el.clientWidth) return;
+      el.scrollLeft += delta;
+    } else {
+      if (el.scrollHeight <= el.clientHeight) return;
+      el.scrollTop += delta;
+    }
+  }
+  function scheduleFlush() {
+    if (!hasRaf) { flushWheel(); return; }
+    if (!wheelRaf) wheelRaf = requestAnimationFrame(flushWheel);
+  }
+
+  // ---- 滚轮 ----
+  el.addEventListener('wheel', (e) => {
+    const scrollable = horizontal
+      ? el.scrollWidth > el.clientWidth
+      : el.scrollHeight > el.clientHeight;
+    if (!scrollable) return;
+    // 已经贴边且继续向该方向滚 -> 交回浏览器
+    const atStart = horizontal ? el.scrollLeft <= 0 : el.scrollTop <= 0;
+    const atEnd = horizontal
+      ? el.scrollLeft + el.clientWidth >= el.scrollWidth - 1
+      : el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+    if (atStart && e.deltaY < 0) return;
+    if (atEnd && e.deltaY > 0) return;
+
+    wheelAccum += e.deltaY;
+    scheduleFlush();
+    e.preventDefault();
+    e.stopPropagation();
+  }, { passive: false });
+
+  // ---- 触摸 / 鼠标拖动 ----
+  if (drag) {
+    let dragging = false, startX = 0, startY = 0, startScroll = 0, moved = 0, captured = false;
+
+    el.addEventListener('pointerdown', (e) => {
+      // 只处理鼠标左键与触摸
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (dragSelector && e.target && e.target.closest && !e.target.closest(dragSelector)) return;
+      dragging = true; moved = 0; captured = false;
+      startX = e.clientX; startY = e.clientY;
+      startScroll = horizontal ? el.scrollLeft : el.scrollTop;
+    });
+
+    el.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (horizontal) {
+        if (!captured && Math.abs(dx) < 4) return;
+        if (!captured && el.scrollWidth <= el.clientWidth) { dragging = false; return; }
+        captured = true;
+        el.scrollLeft = startScroll - dx;
+        moved = Math.abs(dx);
+      } else {
+        if (!captured && Math.abs(dy) < 4) return;
+        if (!captured && el.scrollHeight <= el.clientHeight) { dragging = false; return; }
+        captured = true;
+        el.scrollTop = startScroll - dy;
+        moved = Math.abs(dy);
+      }
+      e.preventDefault();
+    });
+
+    const endDrag = () => { dragging = false; };
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+    el.addEventListener('pointerleave', endDrag);
+
+    // 拖动过就不再触发点击，防止误选卡牌
+    el.addEventListener('click', (e) => {
+      if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; }
+    }, true);
+  }
+
+  el.__smoothScroll = true;
+}
+
+// 战斗日志：可滚轮 / 上下滑动回看历史。
+//
+// 与新消息的自动滚动配合：只有当玩家本来就停在最底部时才自动跟随；
+// 一旦玩家往上翻看旧消息，就不再把他拽回底部（否则滚动会被不断打断）。
+function initLogScroll() {
+  const log = document.getElementById('log');
+  if (!log || log.__logScrollReady) return;
+  log.__logScrollReady = true;
+  initSmoothScroll(log, { axis: 'y', drag: true });
+}
+
+// 页面初始化：给所有可滚动容器接上上述行为
+function initAllScrollAreas() {
+  const areas = [
+    { id: 'tutorial' },                       // 教学页：整个内容区纵向滚动
+    { id: 'pileView' },
+    { id: 'rewardView' },
+    { id: 'upgradeView' },
+  ];
+  for (const area of areas) {
+    const root = document.getElementById(area.id);
+    if (!root) continue;
+    const target = root.querySelector('.tutorial-content') || root.querySelector('.modal-cards');
+    if (target) initSmoothScroll(target, { axis: 'y', drag: true });
+  }
+  initLogScroll();
+}
+initAllScrollAreas();
 
 // ============================================================
 //  弹窗内容

@@ -59,7 +59,10 @@ let S = {
   drawPile: [], hand: [], discardPile: [],
   turn: 1, phase: 'player',
   enemy: null,
-  powers: {},
+  // ---------- 状态 ----------
+  // 玩家与敌人的状态容器结构完全一致（{ 状态键: 数值 }），敌我通用。
+  // 敌人的容器在生成敌人时创建（见 spawnNormalEnemy / spawnBoss）。
+  states: {},
   gameOver: false,
   currentIsBoss: false,
   // ---------- 新增：房间与敌人池 ----------
@@ -119,6 +122,16 @@ function upgradeDeckEntry(entry) {
   if (level >= maxUp) return entry;
   return { id, level: level + 1 };
 }
+
+// ============================================================
+//  状态效果层
+// ============================================================
+// 状态的「施加 / 检查 / 计入结算」全部在 StatusManager.js：
+//   SIDE / createStatuses / statusesOf / statusValue / hasStatus / activeStatuses
+//   addStatus / setStatus / consumeStatus / consumeStun / clearStatuses
+//   applyStatusBonus / gainBlock / gainHp / triggerLaughDamage / initEnemyStatuses
+// 状态的展示信息在 StatusDataBase.js，绘制在 RenderManager.js。
+// GameManager 只负责在合适的时机调用它们，并在文件末尾完成注入。
 
 // ============================================================
 //  开始新游戏
@@ -181,7 +194,7 @@ function enterBattleRoom() {
   S.turn = 1;
   S.phase = 'player';
   S.gameOver = false;
-  S.powers = {};
+  S.states = {};
 
   // 牌组条目 -> 战斗中的卡牌实例（含等级与最终数值）
   S.drawPile = S.masterDeck.map(entry => makeCard(entry));
@@ -327,6 +340,9 @@ function spawnNormalEnemy(pool) {
     })),
     moveIndex: 0,
     nextMove: null,
+    // strength / stun 是状态容器里的条目；这两个字段作为镜像，
+    // 供「跳过回合」「攻击加成」等既有读取点使用（见 addStatus）。
+    states: createStatuses(),
     strength: 0,
     stun: 0,
     isBoss: false,
@@ -344,6 +360,7 @@ function spawnBoss() {
     moves: [],
     moveIndex: 0,
     nextMove: null,
+    states: createStatuses(),
     strength: 0,
     stun: 0,
     isBoss: true,
@@ -361,11 +378,13 @@ function shuffle(arr) {
 // ============================================================
 //  BOSS 伤害计算（随回合增长）
 // ============================================================
+// 只算基础值；力量加成由调用方通过 applyStatusBonus 统一叠加，
+// 避免这里和普通攻击两套加成逻辑。
 function getBossDamage() {
   const base = 16;
   // 每战斗回合增长 15%
   const scale = 1 + 0.15 * (S.turn - 1);
-  return Math.floor(base * scale) + (S.enemy.strength || 0);
+  return Math.floor(base * scale);
 }
 
 // ============================================================
@@ -419,8 +438,14 @@ function addLaugh(n) {
   const prev = S.laugh;
   S.laugh = Math.max(0, Math.min(10, S.laugh + n));
   const delta = S.laugh - prev;
-  if (delta > 0 && S.powers.laughDamage && !S.gameOver) {
-    dealDamage(S.powers.laughDamage * delta);
+  // 笑点爆炸是「持有者」的状态：谁持有、谁在狂笑值增加时输出伤害。
+  // 状态遍历本身由 StatusManager 负责，这里只给出「谁打谁」。
+  // 这类伤害按状态层数计算，不再叠加力量（raw）。
+  if (delta > 0 && !S.gameOver) {
+    triggerLaughDamage(delta, (side, dmg) => {
+      if (side === SIDE.player) dealDamage(dmg, { raw: true });
+      else damagePlayer(dmg);
+    });
   }
   checkLaughThresholds(prev, S.laugh);
   renderLaughMeter();
@@ -431,7 +456,7 @@ function checkLaughThresholds(prev, cur) {
     { val: 3, name: '咯咯笑', msg: '奶蛙开始咯咯地笑。' },
     { val: 6, name: '捧腹笑', msg: '奶蛙捧腹大笑，敌人意图变得模糊！' },
     { val: 9, name: '笑到脱力', msg: '奶蛙笑到脱力，浑身颤抖！' },
-    { val: 10, name: '笑死了', msg: '奶蛙笑到失控！下回合将失去 5 点生命。' },
+    { val: 10, name: '笑死了', msg: '奶蛙笑到失控！下个回合开始时将失去 5 点生命。' },
   ];
   for (const t of thresholds) {
     if (prev < t.val && cur >= t.val) {
@@ -439,7 +464,15 @@ function checkLaughThresholds(prev, cur) {
       logMsg(t.msg, 'laugh');
       // 狂笑值达到 10 时播放一次狂笑音效
       // （这里的 prev < 10 <= cur 条件保证只在跨越那一刻触发一次）
-      if (t.val === 10) playLaughSfx();
+      if (t.val === 10) {
+        playLaughSfx();
+        // 达到 10 的「当场」就施加「大笑之王」：
+        // 本回合剩余的攻击立即享受 ×1.5，不必等到下个回合结算。
+        // 它会在下个回合开始时由 settleLaugh 清除（见那里的说明）。
+        setStatus(SIDE.player, 'kingOfLaugh', 1);
+        logMsg('奶蛙笑到失控，获得「大笑之王」：本回合造成的伤害 ×1.5！', 'laugh');
+        renderPlayerStatus();
+      }
     }
   }
 }
@@ -447,10 +480,25 @@ function checkLaughThresholds(prev, cur) {
 // 演出效果 showThresholdFx / triggerLaughAnimation / triggerEnemyHit
 // 已移至 RenderManager.js
 
-function dealDamage(amount) {
+// 玩家 -> 敌人 的伤害。
+// 默认计入玩家自己的「力量」加成（与敌人攻击走同一套 applyStatusBonus），
+// 因此所有攻击牌的描述数值 + 力量 = 实际伤害，敌我规则一致。
+// opts.raw = true 用于「笑点爆炸」这类按状态层数计算的伤害，不吃力量。
+function dealDamage(amount, opts) {
   if (!S.enemy || S.enemy.hp <= 0 || S.gameOver) return;
-  // 对敌人造成的伤害是正面向效果：向下取整
-  const dmg = roundFavor(amount);
+  const raw = opts && opts.raw;
+  // 用 let：下面「大笑之王」会就地乘算（const 会导致赋值报错）
+  let base = raw ? amount : applyStatusBonus(SIDE.player, amount);
+
+  // 「大笑之王」：本回合造成的伤害 ×1.5。
+  // 状态键必须是字符串 'kingOfLaugh'（STATUS_DEFS.kingOfLaugh 是元数据对象）
+  if (hasStatus(SIDE.player, 'kingOfLaugh')) {
+    base *= 1.5;
+  }
+
+  // 对敌人造成的伤害向上取整
+  const dmg = roundHurt(base);
+
   const blocked = Math.min(S.enemy.block, dmg);
   S.enemy.block -= blocked;
   const actual = dmg - blocked;
@@ -461,13 +509,21 @@ function dealDamage(amount) {
   if (S.enemy.hp <= 0) winBattle();
 }
 
+// 敌人 -> 玩家 的伤害。与 dealDamage 对称：先扣格挡，再扣生命。
+// 玩家受伤是负面向效果：向上取整。
+function damagePlayer(amount) {
+  if (S.gameOver) return 0;
+  const dmg = roundHurt(amount);
+  const absorbed = Math.min(S.playerBlock, dmg);
+  S.playerBlock -= absorbed;
+  const actual = dmg - absorbed;
+  S.playerHp = Math.max(0, S.playerHp - actual);
+  return actual;
+}
+
+// 玩家获得格挡：统一走 gainBlock（会吃自己的「肚皮鼓胀」加成）
 function addBlock(n) {
-  // 格挡是正面向效果：基础值向下取整，额外加成也向下取整
-  const extra = roundFavor(S.powers.extraBlock || 0);
-  const gain = roundFavor(n) + extra;
-  S.playerBlock += gain;
-  logMsg(`奶蛙获得 ${gain} 点格挡。`, 'block');
-  renderPlayer();
+  return gainBlock(SIDE.player, n, roundFavor);
 }
 // ============================================================
 //  打出卡牌
@@ -504,18 +560,9 @@ function endTurn() {
   S.phase = 'enemy';
   document.getElementById('endTurnBtn').disabled = true;
 
-  if (S.laugh >= 10) {
-    S.playerHp -= 5;
-    logMsg('奶蛙笑到失控，失去 5 点生命！', 'dmg');
-    S.laugh = 5;
-  } else {
-    S.laugh = Math.max(0, S.laugh - 1);
-  }
-
-  if (S.powers.laughPerTurn > 0) {
-    addLaugh(S.powers.laughPerTurn);
-    logMsg(`狂笑不止：狂笑 +${S.powers.laughPerTurn}。`, 'laugh');
-  }
+  // ---- 狂笑值结算 ----
+  // 已移到玩家回合开始时结算（见 settleLaugh），这样玩家在自己回合内就能
+  // 看到本回合的狂笑值变化与后果，而不是等回合结束才知道。
 
   renderAll();
   if (S.playerHp <= 0) { loseBattle(); return; }
@@ -533,9 +580,9 @@ function endTurn() {
 function enemyTurn() {
   if (S.gameOver) return;
 
-  // BOSS 眩晕检查
-  if (S.enemy.stun > 0) {
-    S.enemy.stun--;
+  // 眩晕检查：眩晕是通用状态，走 consumeStun 以保持容器与镜像字段一致
+  if (statusValue(SIDE.enemy, 'stun') > 0) {
+    consumeStun(SIDE.enemy);
     logMsg(`${S.enemy.name} 处于眩晕状态，无法行动！`, 'block');
     renderAll();
     setTimeout(nextPlayerTurn, 800);
@@ -550,25 +597,21 @@ function enemyTurn() {
       const hits = move.hits || 1;
       let totalDmg = 0;
       for (let i = 0; i < hits; i++) {
-        // 玩家受到的伤害是负面向效果：向上取整
-        const dmg = roundHurt(move.dmg + (S.enemy.strength || 0));
-        const absorbed = Math.min(S.playerBlock, dmg);
-        S.playerBlock -= absorbed;
-        const actual = dmg - absorbed;
-        S.playerHp = Math.max(0, S.playerHp - actual);
-        totalDmg += actual;
+        // 攻击伤害统一计入持有者自己的力量加成（敌我同规则）
+        const dmg = applyStatusBonus(SIDE.enemy, move.dmg);
+        totalDmg += damagePlayer(dmg);
       }
       logMsg(`${S.enemy.name} 使用「${move.name}」，造成 ${totalDmg} 点伤害。`, 'dmg');
       triggerEnemyHit();
     } else if (move.type === 'block') {
-      S.enemy.block += move.block;
-      logMsg(`${S.enemy.name} 获得 ${move.block} 点格挡。`, 'block');
+      // 敌人获得格挡同样走 gainBlock，会吃它自己的「肚皮鼓胀」
+      gainBlock(SIDE.enemy, move.block, roundFavor);
     } else if (move.type === 'buff') {
-      S.enemy.strength = (S.enemy.strength || 0) + move.buff;
+      // 力量是通用状态，敌人加在它自己的状态容器上
+      addStatus(SIDE.enemy, 'strength', move.buff);
       logMsg(`${S.enemy.name} 攻击力提升 ${move.buff} 点。`, '');
     } else if (move.type === 'heal') {
-      const healed = Math.min(move.heal, S.enemy.maxHp - S.enemy.hp);
-      S.enemy.hp += healed;
+      const healed = gainHp(SIDE.enemy, move.heal, roundFavor);
       logMsg(`${S.enemy.name} 回复 ${healed} 点生命。`, 'heal');
     }
   }
@@ -580,14 +623,15 @@ function enemyTurn() {
 
 // ---------- BOSS 攻击结算（含眩晕逻辑） ----------
 function resolveBossAttack() {
-  const dmg = getBossDamage();
-  logMsg(`👑 盛碗奶蛙使用「盛碗一击」，造成 ${dmg} 点伤害！`, 'boss');
+  // 力量对 BOSS 同样生效（敌我同规则）
+  const dmg = applyStatusBonus(SIDE.enemy, getBossDamage());
+  logMsg(`👑 ${S.enemy.name} 使用「盛碗一击」，造成 ${dmg} 点伤害！`, 'boss');
 
   if (S.playerBlock >= dmg) {
-    // 完全格挡 → BOSS 眩晕
+    // 完全格挡 → BOSS 眩晕（眩晕是通用状态，走 addStatus 以同步镜像字段）
     S.playerBlock -= dmg;
-    S.enemy.stun = 1;
-    logMsg(`✨ 攻击被完全格挡！盛碗奶蛙眩晕一回合！`, 'block');
+    addStatus(SIDE.enemy, 'stun', 1);
+    logMsg(`✨ 攻击被完全格挡！${S.enemy.name} 眩晕一回合！`, 'block');
   } else {
     const absorbed = S.playerBlock;
     S.playerBlock = 0;
@@ -598,6 +642,47 @@ function resolveBossAttack() {
   triggerEnemyHit();
 }
 
+// ============================================================
+//  狂笑值结算
+// ============================================================
+// 在「玩家回合开始时」结算，而不是等回合结束：
+// 玩家一进入自己的回合就能看到狂笑值的最新状态与后果，便于据此决定出牌。
+//
+// 结算内容（顺序有讲究）：
+//   0. 先清除上一回合留下的「大笑之王」——它的有效期只到本次结算为止
+//   1. 狂笑值达到 10 -> 笑到失控：失去 5 点生命、狂笑归 0
+//   2. 未达 10 -> 自然衰减 1 点
+//   3. 叠加「狂笑不止」的每回合增量
+//      （若加成后再次冲到 10，会在 addLaugh 里立即再触发一次「大笑之王」）
+//
+// 返回 false 表示奶蛙因这次结算倒下，调用方应立即结束回合流程。
+function settleLaugh() {
+  // 「大笑之王」是在狂笑值达到 10 的「当刻」施加的（见 checkLaughThresholds），
+  // 让玩家能在该回合剩余的攻击里享受 ×1.5；这里负责结束它的有效期。
+  setStatus(SIDE.player, 'kingOfLaugh', 0);
+
+  if (S.laugh >= 10) {
+    // 负面向效果：固定失去 5 点，且生命值不得低于 0
+    S.playerHp = Math.max(0, S.playerHp - 5);
+    logMsg('奶蛙笑到失控，失去 5 点生命！', 'dmg');
+    S.laugh = 0;
+  } else {
+    S.laugh = Math.max(0, S.laugh - 1);
+  }
+
+  // 狂笑不止：持有者每回合额外增加狂笑值。
+  // 不写死阵营——谁能获得狂笑值，谁的状态就生效。
+  const laughPerTurn = statusValue(SIDE.player, 'laughPerTurn');
+  if (laughPerTurn > 0) {
+    addLaugh(laughPerTurn);
+    logMsg(`狂笑不止：狂笑 +${laughPerTurn}。`, 'laugh');
+  }
+
+  renderLaughMeter();
+  renderPlayer();
+  return S.playerHp > 0;
+}
+
 function nextPlayerTurn() {
   if (S.gameOver) return;
   S.turn++;
@@ -606,6 +691,11 @@ function nextPlayerTurn() {
   // 我方护盾在敌方回合结束时清零：它刚刚已经替奶蛙挡过敌方的攻击。
   // 敌方护盾的清零在 endTurn() 里（玩家回合结束）。
   S.playerBlock = 0;
+
+  // 狂笑值在玩家回合开始时就结算（含失控掉血），
+  // 让玩家在出牌前就掌握本回合的狂笑状态。
+  if (!settleLaugh()) { loseBattle(); return; }
+
   discardHand();
   drawCards(5);
   rollEnemyIntent();
@@ -622,7 +712,7 @@ function rollEnemyIntent() {
 
   // BOSS
   if (S.enemy.isBoss) {
-    if (S.enemy.stun > 0) {
+    if (statusValue(SIDE.enemy, 'stun') > 0) {
       S.enemy.nextMove = { name: '眩晕', icon: '💫', type: 'stunned' };
       return;
     }
@@ -643,10 +733,11 @@ function rollEnemyIntent() {
   S.enemy.moveIndex++;
 }
 
+// 敌人受到攻击时的意图文案（走通用状态读取，敌我同规则）
 function getMoveDesc(move) {
   if (!move) return '';
   if (move.type === 'attack') {
-    const dmg = move.dmg + (S.enemy.strength || 0);
+    const dmg = applyStatusBonus(SIDE.enemy, move.dmg);
     const hits = move.hits || 1;
     return hits > 1 ? `造成 ${dmg} 点伤害 ${hits} 次` : `造成 ${dmg} 点伤害`;
   }
@@ -944,6 +1035,19 @@ configureRenderManager({
     describeMove: getMoveDesc,
     playCard: playCard,
   },
+});
+
+// ============================================================
+//  注入状态层
+// ============================================================
+// StatusManager.js 负责状态的施加 / 检查 / 计入结算。
+// 注入状态对象与汇报回调，保持 GameManager → StatusManager 的单向依赖。
+configureStatusManager({
+  state: S,
+  // 卡牌效果签名为 (S, values)：这里把状态对象绑定好再执行
+  run: (state, fn) => fn(state),
+  // 状态层需要写日志 / 局部刷新时回调这些，而不直接依赖 RenderManager
+  actions: { logMsg, renderPlayer, renderEnemy },
 });
 
 // ============================================================

@@ -29,7 +29,7 @@
     </div>
     <h1 class="game-title">杀戮奶蛙</h1>
     <p class="game-subtitle">Slay the Milk Frog</p>
-    <p class="game-tagline">笑到停不下来，笑到脱力。</p>
+    <p class="game-tagline">狩猎魔头安东·尼制造的强力魔王，寻找拯救世界的方法。</p>
     <div class="menu-buttons">
       <button class="menu-btn primary" id="startBtn">开 始 游 戏</button>
       <button class="menu-btn" id="tutorialBtn">游 戏 机 制</button>
@@ -71,12 +71,13 @@
 
       <div class="tut-card">
         <h2>😆 狂笑值（Laugh Meter）</h2>
-        <p>打出带有 <b>「狂笑」</b> 标签的卡牌会增加狂笑值，范围 <b>0 – 10</b>。每回合自然衰减 1 点。</p>
+        <p>打出带有 <b>「狂笑」</b> 标签的卡牌会增加狂笑值，范围 <b>0 – 10</b>。</p>
+        <p><span class="hl">在每个玩家回合开始时结算</span>：先结算下方阈值，再自然衰减 1 点，最后叠加「狂笑不止」等加成 —— 所以你一进入回合就能看到本回合的狂笑值。</p>
         <ul>
           <li>达到 <b>3</b>：咯咯笑</li>
           <li>达到 <b>6</b>：捧腹笑 —— 敌人意图模糊</li>
           <li>达到 <b>9</b>：笑到脱力</li>
-          <li><span class="dgr">达到 10</span>：笑到失控 —— 失去 5 点生命，狂笑值重置为 5</li>
+          <li><span class="dgr">达到 10</span>：笑到失控 —— <b>立即</b>获得状态「大笑之王」（造成的伤害 ×1.5），持续到下次结算为止；并在 <b>下个回合开始时</b>失去 5 点生命，狂笑值重置为 0</li>
         </ul>
       </div>
 
@@ -136,16 +137,6 @@
           <li><span style="color:#ff9a8a;">红色 = 负面效果</span> —— 对持有者不利，例如「眩晕」</li>
         </ul>
         <p><b>把鼠标移到徽章上</b>即可看到该状态的完整说明与当前数值，移开即消失。</p>
-      </div>
-
-      <div class="tut-card">
-        <h2>🔢 数值取整</h2>
-        <p>当计算结果出现小数时：</p>
-        <ul>
-          <li><b>正面效果</b>（伤害、格挡、回复）→ <b>向下取整</b></li>
-          <li><b>负面效果</b>（受到的伤害、失去的生命）→ <b>向上取整</b></li>
-        </ul>
-        <p class="ghost-txt" style="font-size:11.5px;color:#888;">代价不会被取整悄悄抹掉。</p>
       </div>
 
       <div class="tut-card">
@@ -319,6 +310,7 @@
 <script src="CardsDataBase.js"></script>
 <script src="EnemiesDataBase.js"></script>
 <script src="StatusDataBase.js"></script>
+<script src="StatusManager.js"></script>
 <script src="RenderManager.js"></script>
 <script src="GameManager.js"></script>
 <script src="Responsive.js"></script>

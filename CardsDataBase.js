@@ -136,7 +136,7 @@ const CARD_DB = {
   },
   roll_laughing: {
     name: '笑到打滚', cost: 2, type: 'skill', rarity: 'common', maxUpgrade: 2,
-    laugh: true, base: { block: 12, laugh: 1 }, upgrade: { block: 4 },
+    laugh: true, base: { block: 12, laugh: 4 }, upgrade: { block: 4 },
     desc: v => `获得 ${v.block} 点格挡。狂笑 +${v.laugh}。`,
     effect: (S, v) => { addBlock(v.block); addLaugh(v.laugh); },
   },
@@ -154,13 +154,13 @@ const CARD_DB = {
   },
   cant_hold: {
     name: '忍不住了', cost: 0, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
-    laugh: true, base: { laugh: 2, draw: 1 }, upgrade: { laugh: 1 },
+    laugh: true, base: { laugh: 3, draw: 1 }, upgrade: { laugh: 1 },
     desc: v => `狂笑 +${v.laugh}。抽 ${v.draw} 张牌。`,
     effect: (S, v) => { addLaugh(v.laugh); drawCards(v.draw); },
   },
   laughing_gas: {
     name: '笑气', cost: 1, type: 'skill', rarity: 'common', maxUpgrade: 2,
-    laugh: true, base: { laugh: 3, block: 3 }, upgrade: { laugh: 1, block: 2 },
+    laugh: true, base: { laugh: 5, block: 3 }, upgrade: { laugh: 1, block: 2 },
     desc: v => `狂笑 +${v.laugh}。获得 ${v.block} 点格挡。`,
     effect: (S, v) => { addLaugh(v.laugh); addBlock(v.block); },
   },
@@ -184,25 +184,30 @@ const CARD_DB = {
     name: '狂笑不止', cost: 2, type: 'power', rarity: 'common', maxUpgrade: 1,
     laugh: false, base: { laughPerTurn: 1 }, upgrade: { laughPerTurn: 1 },
     desc: v => `每回合结束时，狂笑 +${v.laughPerTurn}。`,
-    effect: (S, v) => { S.powers.laughPerTurn = (S.powers.laughPerTurn || 0) + v.laughPerTurn; },
+    // 能力牌统一走 addStatus：状态挂在持有者（奶蛙）身上，与敌方状态同一套结构
+    effect: (S, v) => { addStatus(SIDE.player, 'laughPerTurn', v.laughPerTurn); },
   },
   belly_swell: {
     name: '肚皮鼓胀', cost: 2, type: 'power', rarity: 'uncommon', maxUpgrade: 1,
     laugh: false, base: { extraBlock: 3 }, upgrade: { extraBlock: 2 },
     desc: v => `每当你获得格挡时，额外获得 ${v.extraBlock} 点格挡。`,
-    effect: (S, v) => { S.powers.extraBlock = (S.powers.extraBlock || 0) + v.extraBlock; },
+    effect: (S, v) => { addStatus(SIDE.player, 'extraBlock', v.extraBlock); },
   },
   laugh_burst: {
     name: '笑点爆炸', cost: 2, type: 'power', rarity: 'uncommon', maxUpgrade: 1,
     laugh: false, base: { laughDamage: 2 }, upgrade: { laughDamage: 2 },
     desc: v => `每当你狂笑值增加时，对敌人造成 ${v.laughDamage} 点伤害。`,
-    effect: (S, v) => { S.powers.laughDamage = (S.powers.laughDamage || 0) + v.laughDamage; },
+    effect: (S, v) => { addStatus(SIDE.player, 'laughDamage', v.laughDamage); },
   },
   nerve_boost: {
     name: '笑神经强化', cost: 3, type: 'power', rarity: 'rare', maxUpgrade: 1,
     laugh: false, base: { lpMax: 1 }, upgrade: { lpMax: 1 },
     desc: v => `笑点上限 +${v.lpMax}。本回合笑点 +${v.lpMax}。`,
-    effect: (S, v) => { S.lpMax += v.lpMax; S.lp += v.lpMax; },
+    effect: (S, v) => {
+      // 笑点是奶蛙独有资源，但仍经通用状态接口登记，保持状态体系统一
+      addStatus(SIDE.player, 'lpMax', v.lpMax);
+      S.lpMax += v.lpMax; S.lp += v.lpMax;
+    },
   },
 
   // ============================================================
@@ -250,8 +255,8 @@ const CARD_DB = {
     laugh: false, base: { laughPerTurn: 2, laughDamage: 1 }, upgrade: { laughPerTurn: 1 },
     desc: v => `每回合结束时狂笑 +${v.laughPerTurn}。每当你狂笑值增加时，对敌人造成 ${v.laughDamage} 点伤害。`,
     effect: (S, v) => {
-      S.powers.laughPerTurn = (S.powers.laughPerTurn || 0) + v.laughPerTurn;
-      S.powers.laughDamage = (S.powers.laughDamage || 0) + v.laughDamage;
+      addStatus(SIDE.player, 'laughPerTurn', v.laughPerTurn);
+      addStatus(SIDE.player, 'laughDamage', v.laughDamage);
     },
   },
 

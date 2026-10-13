@@ -825,12 +825,28 @@
   .btn.upgrade:hover { background: #2b5233; color: #c8ffcf; }
   .btn.small { padding: 7px 16px; font-size: 12px; }
 
-  /* ----- 日志 ----- */
+  /* ----- 战斗日志 -----
+     默认只露出最后几行；鼠标移入（或触摸滚动）时展开完整高度，
+     便于用滚轮 / 上下滑动回看之前的消息。
+     注意：必须开启 pointer-events（原为 none），否则滚轮与触摸事件
+     根本到不了这个元素上。日志位于战场右下角、浮在敌人区域之上，
+     尺寸因此刻意收敛，避免挡住敌人。 */
   #log {
     position: absolute; bottom: 10px; right: 10px;
-    width: 220px; max-height: 160px; overflow-y: auto;
+    width: 220px; overflow-y: auto;
+    max-height: 76px;                 /* 收起时约 4 行 */
     font-size: 11px; color: #777; line-height: 1.6;
-    pointer-events: none; text-align: right; opacity: 0.85;
+    text-align: right;
+    pointer-events: auto;
+    cursor: ns-resize;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: max-height 0.2s ease, background 0.2s ease;
+  }
+  /* 悬停 / 触摸聚焦时展开，方便回看历史 */
+  #log:hover, #log:focus-within {
+    max-height: 160px;
+    background: rgba(0,0,0,0.45);
   }
   #log div { margin-bottom: 2px; }
   #log .dmg { color: #ff6666; }
@@ -840,28 +856,39 @@
   #log .boss { color: #ff8866; font-weight: bold; }
 
   /* ----- 模态框 ----- */
+  /* ============================================================
+     对话框（战斗结算 / 牌堆查看 / 升级 / 奖励）
+     ------------------------------------------------------------
+     样式与游戏画面统一：与 .screen 相同的底色 #22222a、
+     金色描边与暖色阴影，而不是之前的中性灰边框。
+     ============================================================ */
   .modal {
     position: absolute; inset: 0;
-    background: rgba(0,0,0,0.85);
+    background: radial-gradient(ellipse at 50% 45%, rgba(40,45,58,0.92) 0%, rgba(0,0,0,0.92) 75%);
     display: none; flex-direction: column;
     align-items: center; justify-content: center;
     z-index: 100;
   }
-  .modal.show { display: flex; }
+  .modal.show { display: flex; animation: modalFade 0.18s ease-out; }
+  @keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
+
   .modal-content {
-    background: #22222a;
-    border: 2px solid #444; border-radius: 12px;
+    background: linear-gradient(160deg, #262631 0%, #1e1e26 100%);
+    border: 2px solid #5a4a2a; border-radius: 14px;
     padding: 22px 26px;
     max-width: 88%; max-height: 86%;
     display: flex; flex-direction: column;
     align-items: center; gap: 16px;
-    box-shadow: 0 0 50px rgba(0,0,0,0.9);
+    box-shadow: 0 0 50px rgba(0,0,0,0.9), 0 0 30px rgba(255,200,80,0.10), inset 0 0 60px rgba(0,0,0,0.35);
   }
   .modal-title {
     font-size: 20px; color: #ffd966; font-weight: bold;
-    text-shadow: 0 0 12px rgba(255,215,0,0.4);
+    letter-spacing: 3px;
+    text-shadow: 0 0 12px rgba(255,215,0,0.55);
   }
-  .modal-sub { font-size: 12px; color: #888; }
+  .modal-sub { font-size: 12px; color: #8d867c; letter-spacing: 1px; }
+
+  /* 卡牌列表：可滚动，但隐藏滑动条（滚轮 / 拖动 / 触摸滑动见 RenderManager.js） */
   .modal-cards {
     display: flex; flex-wrap: wrap; gap: 10px;
     justify-content: center; overflow-y: auto;
@@ -873,6 +900,24 @@
   }
   .modal-cards .card:hover { transform: translateY(-8px); }
   .modal-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+  /* ============================================================
+     隐藏滑动条（保留滚动能力）
+     ------------------------------------------------------------
+     这些容器由 JS 接管滚轮与触摸滑动，因此不需要可见的滑动条：
+       · Firefox        -> scrollbar-width: none
+       · IE/旧 Edge     -> -ms-overflow-style: none
+       · Chrome/Safari  -> 隐藏 ::-webkit-scrollbar
+     直接对元素设 scrollbar-width 即可，无需额外的修饰类。
+     ============================================================ */
+  .modal-cards,
+  .tutorial-content,
+  #log { scrollbar-width: none; -ms-overflow-style: none; }
+  .modal-cards::-webkit-scrollbar,
+  .tutorial-content::-webkit-scrollbar,
+  #log::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* 拖动滚动时避免选中文字、并禁用浏览器自身的触摸平移（由 JS 处理） */
+  .modal-cards { touch-action: none; }
 
   .reward-intro { font-size: 13px; color: #ccc; text-align: center; max-width: 520px; line-height: 1.6; }
   .reward-intro .hint { color: #ffd966; }
