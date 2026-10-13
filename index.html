@@ -88,15 +88,27 @@
       </div>
 
       <div class="tut-card">
+        <h2>🔥 休息处</h2>
+        <p>每次前往下一个房间时，都有可能进入 <b>休息处</b>。</p>
+        <p><b>概率会累积：</b>每进入一个<b>非休息处</b>房间，下一个房间是休息处的概率 <b>+10%</b>；进入休息处后概率 <b>重置为 0</b>。游戏开始时概率为 0，所以第一场之后必定是战斗。</p>
+        <p>休息处提供两个选项，<b>只能选一个</b>：</p>
+        <ul>
+          <li><span style="color:#9df0c0;">恢复 50% 生命</span> —— 按最大生命值计算</li>
+          <li><span style="color:#9df0a4;">升级一张卡牌</span> —— 与奖励房间的升级相同</li>
+        </ul>
+      </div>
+
+      <div class="tut-card">
         <h2>♾ 无尽战斗 · 怪池推进</h2>
-        <p>战斗胜利后进入下一场战斗，<b>HP 与牌组永久保留</b>。敌人逐战变强（血量 +18%、伤害 +12%）。</p>
+        <p>战斗胜利后进入下一场战斗，<b>HP 与牌组永久保留</b>。</p>
         <p>敌人分为 <b>弱怪池</b> 与 <b>强怪池</b>，以 BOSS 战为分界线：</p>
         <ul>
           <li>开场 → 从 <b>弱怪池</b> 随机</li>
           <li><b>BOSS 战结束后</b> → 先回到弱怪池随机</li>
           <li>弱怪池抽完 → 才轮到 <b>强怪池</b> 随机</li>
         </ul>
-        <p class="ghost-txt" style="font-size:11.5px;color:#888;">同一周期内不会重复遇到同一个敌人。</p>
+        <p><b>强怪池只比弱怪池稍强一些</b> —— 主要体现在回血、自我强化、多段攻击等机制上，数值不会碾压。</p>
+        <p class="ghost-txt" style="font-size:11.5px;color:#888;">敌人强度固定，不会随战斗场次成长；同一周期内不会重复遇到同一个敌人。</p>
       </div>
 
       <div class="tut-card">
@@ -107,12 +119,11 @@
           <li>点击「跳过（+25% 最大生命）」 → 回复最大生命值的 25%</li>
           <li>点击「跳过（无奖励）」 → 直接进入下一战</li>
         </ul>
-        <p>卡牌分为四个稀有度，稀有度越高越难抽到：</p>
+        <p><b>敌人越强，奖励越好：</b></p>
         <ul>
-          <li><span style="color:#9aa4b0;">普通</span> —— 约 60%</li>
-          <li><span style="color:#6fd3c7;">罕见</span> —— 约 30%</li>
-          <li><span style="color:#ffd966;">稀有</span> —— 约 9%</li>
-          <li><span style="color:#c07bff;">史诗</span> —— 约 1%</li>
+          <li><b>弱怪池</b>：普通约 60% / 罕见约 30% / 稀有约 9% / 史诗约 1%</li>
+          <li><b>强怪池</b>：普通约 30% / 罕见约 38% / 稀有约 25% / 史诗约 7%</li>
+          <li><b>BOSS</b>：<span style="color:#c07bff;">只掉落史诗卡牌</span></li>
         </ul>
         <p class="ghost-txt" style="font-size:11.5px;color:#888;">卡牌的边框与卡名颜色即代表它的稀有度。</p>
       </div>
@@ -247,6 +258,18 @@
       <b>奶蛙</b> · 每场战斗开始时狂笑值 +2
     </div>
     <button class="btn end-turn" id="endTurnBtn">结束回合</button>
+  </div>
+
+  <!-- 休息处弹窗：恢复生命 或 升级卡牌，二选一 -->
+  <div class="modal" id="restView">
+    <div class="modal-content">
+      <div class="modal-title" id="restTitle">休息处</div>
+      <div class="modal-sub" id="restSub">选择一项</div>
+      <div class="rest-options">
+        <button class="btn heal" id="restHealBtn">恢复 50% 生命</button>
+        <button class="btn upgrade" id="restUpgradeBtn">升级一张卡牌</button>
+      </div>
+    </div>
   </div>
 
   <!-- 卡牌升级弹窗

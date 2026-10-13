@@ -123,25 +123,25 @@ const CARD_DB = {
   //  技能
   // ============================================================
   cream_belly: {
-    name: '奶油肚皮', cost: 1, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    name: '奶油肚皮', cost: 1, type: 'skill', rarity: 'common', maxUpgrade: 1,
     laugh: false, base: { block: 8 }, upgrade: { block: 3 },
     desc: v => `获得 ${v.block} 点格挡。`,
     effect: (S, v) => { addBlock(v.block); },
   },
   curl_up: {
-    name: '缩成一团', cost: 1, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
-    laugh: false, base: { block: 5, draw: 1 }, upgrade: { block: 3 },
+    name: '缩成一团', cost: 1, type: 'skill', rarity: 'uncommon', maxUpgrade: 1,
+    laugh: false, base: { block: 7, draw: 1 }, upgrade: { block: 3 },
     desc: v => `获得 ${v.block} 点格挡。抽 ${v.draw} 张牌。`,
     effect: (S, v) => { addBlock(v.block); drawCards(v.draw); },
   },
   roll_laughing: {
-    name: '笑到打滚', cost: 2, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    name: '笑到打滚', cost: 2, type: 'skill', rarity: 'common', maxUpgrade: 1,
     laugh: true, base: { block: 12, laugh: 4 }, upgrade: { block: 4 },
     desc: v => `获得 ${v.block} 点格挡。狂笑 +${v.laugh}。`,
     effect: (S, v) => { addBlock(v.block); addLaugh(v.laugh); },
   },
   hold_laugh: {
-    name: '憋笑', cost: 1, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
+    name: '憋笑', cost: 1, type: 'skill', rarity: 'uncommon', maxUpgrade: 1,
     laugh: false, base: { block: 6, laugh: -1 }, upgrade: { block: 3 },
     desc: v => `获得 ${v.block} 点格挡。狂笑 ${v.laugh}。`,
     effect: (S, v) => { addBlock(v.block); addLaugh(v.laugh); },
@@ -153,25 +153,25 @@ const CARD_DB = {
     effect: (S, v) => { addBlock(S.laugh * v.mult); },
   },
   cant_hold: {
-    name: '忍不住了', cost: 0, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
+    name: '忍不住了', cost: 0, type: 'skill', rarity: 'uncommon', maxUpgrade: 1,
     laugh: true, base: { laugh: 3, draw: 1 }, upgrade: { laugh: 1 },
     desc: v => `狂笑 +${v.laugh}。抽 ${v.draw} 张牌。`,
     effect: (S, v) => { addLaugh(v.laugh); drawCards(v.draw); },
   },
   laughing_gas: {
-    name: '笑气', cost: 1, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    name: '笑气', cost: 1, type: 'skill', rarity: 'common', maxUpgrade: 1,
     laugh: true, base: { laugh: 5, block: 3 }, upgrade: { laugh: 1, block: 2 },
     desc: v => `狂笑 +${v.laugh}。获得 ${v.block} 点格挡。`,
     effect: (S, v) => { addLaugh(v.laugh); addBlock(v.block); },
   },
   snicker: {
-    name: '偷着乐', cost: 1, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
+    name: '偷着乐', cost: 1, type: 'skill', rarity: 'uncommon', maxUpgrade: 1,
     laugh: false, base: { draw: 2 }, upgrade: { draw: 1 },
     desc: v => `抽 ${v.draw} 张牌。`,
     effect: (S, v) => { drawCards(v.draw); },
   },
   guffaw: {
-    name: '哈哈大笑', cost: 0, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
+    name: '哈哈大笑', cost: 0, type: 'skill', rarity: 'uncommon', maxUpgrade: 1,
     laugh: true, base: { laugh: 4, draw: 1 }, upgrade: { laugh: 2 },
     desc: v => `狂笑 +${v.laugh}。抽 ${v.draw} 张牌。`,
     effect: (S, v) => { addLaugh(v.laugh); drawCards(v.draw); },

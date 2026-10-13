@@ -53,9 +53,9 @@ const ENEMY_POOL_WEAK = [
     name: '扑腾蛙', hp: 52,
     moves: [
       { name: '扑击',   icon: '🗯️', type: 'attack', dmg: 10 },
-      { name: '鼓腹',   icon: '🛡️', type: 'block',  block: 12 },
+      { name: '鼓腹',   icon: '🛡️', type: 'block',  block: 8 },
       { name: '聒噪',   icon: '⬆️', type: 'buff',   buff: 4 },
-      { name: '蛙跳',   icon: '💥', type: 'attack', dmg: 9, hits: 2 },
+      { name: '蛙跳',   icon: '💥', type: 'attack', dmg: 6, hits: 2 },
     ]
   },
   {
@@ -70,42 +70,46 @@ const ENEMY_POOL_WEAK = [
 ];
 
 // ---------- 强怪池：弱怪池耗尽后登场 ----------
-// 定位：高血量、高伤害，附带回血 / 强化等威胁技能
+// 定位：略强于弱怪池，但不过强。
+// 数值刻意贴近弱怪池的上限（弱池 HP 35–52、单击伤害 6–16），
+// 只在高位稍作上浮 —— 强池的"更强"主要体现在机制上
+// （回血、自我强化、多段攻击），而不是数值碾压。
+// 由于已取消按战斗序号成长，这里的数值就是最终数值。
 const ENEMY_POOL_STRONG = [
   {
-    name: '笑面鬼', hp: 120,
+    name: '笑面鬼', hp: 62,
     moves: [
-      { name: '诡笑',   icon: '🗯️', type: 'attack', dmg: 11 },
-      { name: '尖笑',   icon: '💥', type: 'attack', dmg: 18 },
-      { name: '恢复',   icon: '💚', type: 'heal',   heal: 12 },
-      { name: '狂笑',   icon: '⬆️', type: 'buff',   buff: 7 },
+      { name: '诡笑',   icon: '🗯️', type: 'attack', dmg: 8 },
+      { name: '尖笑',   icon: '💥', type: 'attack', dmg: 14 },
+      { name: '恢复',   icon: '💚', type: 'heal',   heal: 8 },
+      { name: '狂笑',   icon: '⬆️', type: 'buff',   buff: 4 },
     ]
   },
   {
-    name: '阴笑鬼', hp: 135,
+    name: '阴笑鬼', hp: 70,
     moves: [
-      { name: '嗤笑',   icon: '🗯️', type: 'attack', dmg: 9, hits: 2 },
-      { name: '阴笑',   icon: '⬆️', type: 'buff',   buff: 8 },
-      { name: '暗袭',   icon: '💥', type: 'attack', dmg: 22 },
-      { name: '吸血',   icon: '💚', type: 'heal',   heal: 15 },
+      { name: '嗤笑',   icon: '🗯️', type: 'attack', dmg: 7, hits: 2 },
+      { name: '阴笑',   icon: '⬆️', type: 'buff',   buff: 5 },
+      { name: '暗袭',   icon: '💥', type: 'attack', dmg: 16 },
+      { name: '吸血',   icon: '💚', type: 'heal',   heal: 10 },
     ]
   },
   {
-    name: '狂笑暴君', hp: 160,
+    name: '狂笑暴君', hp: 82,
     moves: [
-      { name: '暴击',   icon: '💥', type: 'attack', dmg: 20 },
-      { name: '铁壁',   icon: '🛡️', type: 'block',  block: 20 },
-      { name: '狂暴',   icon: '⬆️', type: 'buff',   buff: 8 },
-      { name: '大笑',   icon: '🗯️', type: 'attack', dmg: 12, hits: 2 },
+      { name: '暴击',   icon: '💥', type: 'attack', dmg: 8 },
+      { name: '铁壁',   icon: '🛡️', type: 'block',  block: 12 },
+      { name: '狂暴',   icon: '⬆️', type: 'buff',   buff: 1 },
+      { name: '大笑',   icon: '🗯️', type: 'attack', dmg: 9, hits: 2 },
     ]
   },
   {
-    name: '笑魇', hp: 145,
+    name: '笑魇', hp: 76,
     moves: [
-      { name: '噩梦',   icon: '💥', type: 'attack', dmg: 24 },
-      { name: '狞笑',   icon: '🛡️', type: 'block',  block: 24 },
-      { name: '压迫',   icon: '⬆️', type: 'buff',   buff: 9 },
-      { name: '连笑',   icon: '🗯️', type: 'attack', dmg: 13, hits: 2 },
+      { name: '噩梦',   icon: '💥', type: 'attack', dmg: 14 },
+      { name: '狞笑',   icon: '🛡️', type: 'block',  block: 15 },
+      { name: '压迫',   icon: '⬆️', type: 'buff',   buff: 6 },
+      { name: '连笑',   icon: '🗯️', type: 'attack', dmg: 2, hits: 2 },
     ]
   },
 ];
@@ -121,7 +125,12 @@ const ENEMY_POOL = {
 const ENEMY_TEMPLATES = ENEMY_POOL_WEAK;
 
 // ---------- BOSS 模板 ----------
+// hpPerWin：每击败一次 BOSS 后的血量增量。
+// 注意这是「跨周期」的难度递增，与已取消的「按战斗序号成长」不同：
+// 它只在真正打赢 BOSS 后才生效，不会在同一周期内逐渐膨胀。
 const BOSS_TEMPLATE = {
   name: '盛碗奶蛙',
   isBoss: true,
+  hp: 200,
+  hpPerWin: 80,
 };

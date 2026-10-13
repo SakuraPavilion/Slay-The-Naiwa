@@ -823,6 +823,13 @@
   /* 升级入口按钮：绿色系，与「升级后卡名变绿」呼应 */
   .btn.upgrade { background: #1f3a24; border-color: #4fbf58; color: #9df0a4; }
   .btn.upgrade:hover { background: #2b5233; color: #c8ffcf; }
+  /* 恢复生命按钮：暖绿色系 */
+  .btn.heal { background: #1f3a2c; border-color: #4fbf8a; color: #9df0c0; }
+  .btn.heal:hover { background: #2b5240; color: #c8ffe0; }
+
+  /* ----- 休息处 ----- */
+  .rest-options { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .rest-options .btn { min-width: 180px; padding: 16px 22px; font-size: 14px; letter-spacing: 2px; }
   .btn.small { padding: 7px 16px; font-size: 12px; }
 
   /* ----- 战斗日志 -----

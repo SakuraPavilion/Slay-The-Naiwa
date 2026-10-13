@@ -29,13 +29,42 @@ const ROOM_TYPE = {
 // UI 会按 selectCardRewards() 返回的长度自动渲染，不需要改渲染代码。
 const BASE_REWARD_CARD_COUNT = 3;
 
-// 稀有度抽取权重（数值越大越常见）
+// ---------- 休息处配置 ----------
+// 每进入一个「非休息处」房间，下一个房间是休息处的概率累积 +10%；
+// 一旦真的进入休息处，概率重置为 0。游戏开始时为 0。
+const REST_CHANCE_STEP = 0.10;
+// 休息处可选择的次数。做成状态字段（S.restChoices）而不是常量，
+// 是为了给后续遗物系统留接口：遗物可以增加这个次数。
+const BASE_REST_CHOICES = 1;
+// 休息处恢复生命值的比例（按最大生命值计）
+const REST_ROOM_HEAL_PCT = 0.50;
+
+// 稀有度抽取权重（数值越大越常见）—— 弱怪池的基础档位
 const RARITY_WEIGHT = {
   common:   60,
   uncommon: 30,
   rare:      9,
   epic:      1,
 };
+
+// ---------- 奖励档位 ----------
+// 奖励品质随敌人强度提升：弱怪池 -> 强怪池 -> BOSS。
+// 强怪池的卡牌奖励明显更好，BOSS 则只掉史诗。
+const REWARD_TIER = {
+  // 弱怪池 / 未知来源：保持原来的分布
+  normal: { common: 60, uncommon: 30, rare: 9, epic: 1 },
+  // 强怪池：稀有与史诗的比重大幅提高，普通牌降到少数
+  strong: { common: 30, uncommon: 38, rare: 25, epic: 7 },
+  // BOSS：只掉史诗
+  boss:   { common: 0,  uncommon: 0,  rare: 0,  epic: 100 },
+};
+
+// 按敌人来源取奖励档位
+function rewardTierFor(poolName, isBoss) {
+  if (isBoss) return REWARD_TIER.boss;
+  if (poolName === 'strong') return REWARD_TIER.strong;
+  return REWARD_TIER.normal;
+}
 
 // ============================================================
 //  数值取整规则
@@ -72,6 +101,10 @@ let S = {
   usedThisCycle: [],             // 本轮周期内已出现过的敌人名（跨 BOSS 重置）
   enemyPhase: 'weak',            // 'weak' | 'strong'：当前处于哪个怪池阶段
   rewardCardCount: BASE_REWARD_CARD_COUNT,  // 本次卡牌奖励可选几张
+  // ---------- 休息处 ----------
+  restChance: 0,                 // 下一个房间是休息处的累积概率（每进一个非休息处 +10%）
+  restChoices: 0,                // 休息处还能选几次（默认 1；为遗物系统预留）
+  restChoicesUsed: 0,            // 休息处已选次数
 };
 
 // ============================================================
@@ -148,9 +181,18 @@ function newGame() {
   S.usedThisCycle = [];
   S.enemyPhase = 'weak';
   S.rewardCardCount = BASE_REWARD_CARD_COUNT;
+  // 休息处：游戏开始时概率为 0
+  S.restChance = 0;
+  S.restChoices = BASE_REST_CHOICES;
+  S.restChoicesUsed = 0;
   document.getElementById('overlay').classList.remove('show');
   showScreen('game');
-  enterBattleRoom();
+  // 第一场固定是战斗。走 EnterRoom 而不是直接 enterBattleRoom()，
+  // 这样 S.room 会被正确设置（否则 room 会是 null，房间判定全部失效）。
+  EnterRoom(ROOM_TYPE.battle);
+  // 但开局这一场不计入休息处概率累积：
+  // 规则是「游戏开始时概率为 0」，所以此处回到 0，第一次推进才是 10%。
+  S.restChance = 0;
 }
 
 // ============================================================
@@ -165,14 +207,26 @@ function newGame() {
 // ============================================================
 function EnterRoom(room, opts = {}) {
   S.room = room;
+
+  // ---- 休息处概率累积 ----
+  // 每进入一个「非休息处」房间，下一次是休息处的概率 +10%；
+  // 进入休息处则重置为 0。放在这里而不是 nextRoom()，
+  // 是为了让所有房间入口（事件、宝箱等后续房间）都自动计入。
+  if (room === ROOM_TYPE.rest) {
+    S.restChance = 0;
+  } else {
+    S.restChance = (S.restChance || 0) + REST_CHANCE_STEP;
+  }
+
   switch (room) {
     case ROOM_TYPE.battle:
       return enterBattleRoom(opts);
     case ROOM_TYPE.reward:
       // 奖励房间：发放卡牌奖励（目前由战斗胜利后调用）
       return enterRewardRoom(opts);
-    case ROOM_TYPE.event:
     case ROOM_TYPE.rest:
+      return enterRestRoom(opts);
+    case ROOM_TYPE.event:
     case ROOM_TYPE.treasure:
       // 尚未实现：先退回战斗房间，保证不会卡死流程
       console.warn('[EnterRoom] 房间类型尚未实现：' + room + '，退回到战斗房间');
@@ -241,6 +295,75 @@ function enterBattleRoom() {
 // 奖励房间：发放卡牌奖励，交给 selectCardRewards 决定具体卡牌
 function enterRewardRoom() {
   showRewardPanel();
+}
+
+// 休息房间：在「恢复生命」与「升级卡牌」中二选一。
+// 可选择的次数由 S.restChoices 决定（默认 1，遗物可增加），
+// 因此这里用计数器而不是布尔量 —— 为后续遗物系统留好接口。
+function enterRestRoom() {
+  S.restChoices = BASE_REST_CHOICES;
+  S.restChoicesUsed = 0;
+  logMsg(`—— 休息处 ——（可选择 ${S.restChoices} 项）`, 'heal');
+  openRestPanel();
+}
+
+// 刷新休息面板：按剩余选择次数显示可选项
+function openRestPanel() {
+  const remaining = S.restChoices - S.restChoicesUsed;
+  const healAmt = getRestRoomHealAmount();
+
+  const title = document.getElementById('restTitle');
+  if (title) title.textContent = '休息处';
+  const sub = document.getElementById('restSub');
+  if (sub) {
+    sub.textContent = remaining > 0
+      ? `选择一项（还可选择 ${remaining} 项）：恢复生命，或升级一张卡牌`
+      : '本处已无剩余选择';
+  }
+  const healBtn = document.getElementById('restHealBtn');
+  if (healBtn) {
+    healBtn.textContent = `恢复 ${Math.round(REST_ROOM_HEAL_PCT * 100)}% 生命（+${healAmt}）`;
+    healBtn.disabled = remaining <= 0 || healAmt <= 0;
+  }
+  const upBtn = document.getElementById('restUpgradeBtn');
+  if (upBtn) upBtn.disabled = remaining <= 0;
+
+  document.getElementById('restView').classList.add('show');
+}
+
+// 消耗一次选择；用完即离开休息处，前往下一个房间
+function resolveRestChoice() {
+  S.restChoicesUsed++;
+  const remaining = S.restChoices - S.restChoicesUsed;
+  if (remaining <= 0) {
+    document.getElementById('restView').classList.remove('show');
+    nextRoom();
+  } else {
+    openRestPanel();     // 还有剩余次数（遗物加成时会出现）
+  }
+}
+
+// 休息处的回血：按最大生命值的比例，正面向效果向下取整
+function getRestRoomHealAmount() {
+  const raw = S.playerMaxHp * REST_ROOM_HEAL_PCT;
+  return Math.max(0, Math.min(roundFavor(raw), S.playerMaxHp - S.playerHp));
+}
+
+function restChooseHeal() {
+  if (S.restChoicesUsed >= S.restChoices) return;
+  const healed = getRestRoomHealAmount();
+  if (healed <= 0) { logMsg('生命值已满，无需恢复。', 'heal'); return; }
+  S.playerHp += healed;
+  logMsg(`在休息处恢复 ${healed} 点生命。`, 'heal');
+  renderPlayer();
+  resolveRestChoice();
+}
+
+function restChooseUpgrade() {
+  if (S.restChoicesUsed >= S.restChoices) return;
+  // 从休息处进入升级界面：升级完成后按休息处的规则消耗选择次数，
+  // 而不是像奖励房间那样直接进入下一战。
+  openUpgradeView({ choiceKind: 'rest' });
 }
 
 // 战斗房间的兼容入口：保持旧函数名可用，内部走 EnterRoom
@@ -314,6 +437,9 @@ function selectEnemyPool() {
 // ============================================================
 // 从 selectEnemyPool() 给出的候选里随机抽一个。候选已经过滤掉本轮出现过的
 // 敌人，因此抽中谁就是谁，并立刻记入 usedThisCycle，保证同一周期内不重复。
+//
+// 注意：敌人的强度完全由模板本身决定，不再按战斗序号成长
+// （原先按 battleCount 叠血量/伤害，会让同一只怪在后期膨胀数倍）。
 function spawnNormalEnemy(pool) {
   const candidates = (pool && pool.list && pool.list.length)
     ? pool.list
@@ -322,22 +448,14 @@ function spawnNormalEnemy(pool) {
   const template = candidates[Math.floor(Math.random() * candidates.length)];
   S.usedThisCycle.push(template.name);
 
-  const hpScale  = 1 + S.battleCount * 0.18;
-  const dmgScale = 1 + S.battleCount * 0.12;
-
-  // 难度循环次数：每跑完一整轮（弱池 + 强池）敌人的名字追加星号
-  const poolTotal = ENEMY_POOL.weak.length + ENEMY_POOL.strong.length;
-  const loopCount = Math.floor(S.battleCount / Math.max(poolTotal, 1));
-
-  const hp = Math.floor(template.hp * hpScale);
+  const hp = template.hp;
   S.enemy = {
-    name: template.name + (loopCount > 0 ? ' ★' + loopCount : ''),
+    name: template.name,
     baseName: template.name,
+    // 来源怪池：决定战斗胜利后的奖励档位（见 rewardTierFor）
+    pool: (pool && pool.name) || 'weak',
     hp, maxHp: hp, block: 0,
-    moves: template.moves.map(m => ({
-      ...m,
-      dmg: m.dmg ? Math.floor(m.dmg * dmgScale) : undefined,
-    })),
+    moves: template.moves.map(m => ({ ...m })),
     moveIndex: 0,
     nextMove: null,
     // strength / stun 是状态容器里的条目；这两个字段作为镜像，
@@ -353,9 +471,10 @@ function spawnBoss() {
   // bossWinStreak 记录已经打赢过几次 BOSS，与战斗序号解耦：
   // 即使 BOSS 因概率未触发，下一次真正遭遇时难度也不会跳变。
   const tier = S.bossWinStreak;
-  const hp = 200 + tier * 80;
+  const hp = BOSS_TEMPLATE.hp + tier * BOSS_TEMPLATE.hpPerWin;
   S.enemy = {
     name: BOSS_TEMPLATE.name,
+    pool: 'boss',
     hp, maxHp: hp, block: 0,
     moves: [],
     moveIndex: 0,
@@ -801,9 +920,12 @@ function loseBattle() {
 // ============================================================
 // 奖励数量由 count 参数决定（不写死 3）。当前调用方传 S.rewardCardCount，
 // 后续遗物只要修改这个值就能改变奖励张数，UI 会自动按返回长度渲染。
-// 稀有度按 RARITY_WEIGHT 加权，且同一批奖励内不重复。
+// 稀有度按档位加权（强怪池更好、BOSS 只出史诗），同一批奖励内不重复。
 // 初始牌组的卡（REWARD_EXCLUDED_IDS）会被排除，不会作为奖励出现。
-function selectCardRewards(count = S.rewardCardCount) {
+//
+// opts.tier 可显式指定档位；不传则按当前敌人来源自动判定
+// （强怪池 -> strong，BOSS -> boss，其余 -> normal）。
+function selectCardRewards(count = S.rewardCardCount, opts = {}) {
   const byRarity = cardIdsByRarity({ exclude: REWARD_EXCLUDED_IDS });
   // 兜底：即使将来有人用别的方式重建奖励池，也把初始牌组的卡滤掉，
   // 保证「起手牌不会作为奖励出现」这条约定不会被绕过。
@@ -812,15 +934,20 @@ function selectCardRewards(count = S.rewardCardCount) {
     byRarity[r] = byRarity[r].filter(id => !excluded.has(id));
   }
 
-  const rarities = Object.keys(RARITY_WEIGHT);
-  const totalWeight = rarities.reduce((sum, r) => sum + RARITY_WEIGHT[r], 0);
+  const weights = opts.tier
+    || rewardTierFor(S.enemy && S.enemy.pool, S.currentIsBoss);
+
+  // 只保留权重 > 0 的稀有度：BOSS 档位下 common/uncommon/rare 全为 0，
+  // 这样抽奖只会在史诗里进行。
+  const rarities = Object.keys(weights).filter(r => weights[r] > 0);
+  const totalWeight = rarities.reduce((sum, r) => sum + weights[r], 0);
 
   // 按权重随机一个稀有度；若该稀有度已抽空，则退回还有余量的稀有度，
   // 保证只要牌库里还有卡就一定能凑满 count 张
   function pickRarity() {
     let roll = Math.random() * totalWeight;
     for (const r of rarities) {
-      roll -= RARITY_WEIGHT[r];
+      roll -= weights[r];
       if (roll < 0) return r;
     }
     return rarities[0];
@@ -871,7 +998,12 @@ function upgradeMasterDeckCard(index) {
 //  升级界面
 // ============================================================
 // 打开升级界面：列出牌组里所有还能升级的卡，点击即可升级一张。
-function openUpgradeView() {
+// 打开升级界面：列出牌组里所有还能升级的卡，点击即可升级一张。
+// opts.choiceKind：
+//   'rest'   —— 休息处入口，升级后消耗一次休息选择次数
+//   'reward' —— 奖励房间入口（默认），升级后留在奖励面板
+function openUpgradeView(opts = {}) {
+  const choiceKind = opts.choiceKind || 'reward';
   const container = document.getElementById('upgradeCards');
   container.innerHTML = '';
   let shown = 0;
@@ -884,17 +1016,17 @@ function openUpgradeView() {
     const el = createCardElement(makeCard(entry), { interactive: true });
     el.title = '点击升级这张卡';
     el.onclick = () => {
-      if (upgradeMasterDeckCard(index)) {
-        document.getElementById('upgradeView').classList.remove('show');
-      } else {
-        openUpgradeView();     // 重建列表（例如刚好满级时刷新）
-      }
+      if (!upgradeMasterDeckCard(index)) { openUpgradeView({ choiceKind }); return; }
+      document.getElementById('upgradeView').classList.remove('show');
+      if (choiceKind === 'rest') resolveRestChoice();
     };
     container.appendChild(el);
   });
 
   if (shown === 0) {
     logMsg('牌组里没有可升级的卡牌了。', '');
+    // 休息处：没有可升级的卡时不该白白消耗选择次数，直接回休息面板
+    if (choiceKind === 'rest') openRestPanel();
     return;
   }
   document.getElementById('upgradeView').classList.add('show');
@@ -950,18 +1082,19 @@ function skipRewardNoHeal() {
   nextRoom();
 }
 
-// 跳过奖励的回血量：按「最大生命值」的百分比计算。
-// 抽成纯函数便于单独验证，也为后续遗物修改比例留出接入点。
-const REST_HEAL_PCT = 0.25;
-function getRestHealAmount() {
+// 「跳过奖励」的回血量：按最大生命值的 25%。
+// 注意与休息处的 50% 恢复（REST_ROOM_HEAL_PCT / getRestRoomHealAmount）区分开 ——
+// 两者是不同的机制，这里用具名常量避免以后改错地方。
+const SKIP_REWARD_HEAL_PCT = 0.25;
+function getSkipRewardHealAmount() {
   // 恢复属于正面向效果：向下取整，且不超过最大生命值
-  const raw = S.playerMaxHp * REST_HEAL_PCT;
+  const raw = S.playerMaxHp * SKIP_REWARD_HEAL_PCT;
   return Math.max(0, Math.min(roundFavor(raw), S.playerMaxHp - S.playerHp));
 }
 
 function skipRewardWithHeal() {
   // 按「最大生命值」的百分比恢复（此前误用当前生命值，已修正）
-  const healed = getRestHealAmount();
+  const healed = getSkipRewardHealAmount();
   S.playerHp += healed;
   logMsg(`跳过奖励，回复最大生命值的 25%（${healed} 点生命）。`, 'heal');
   renderPlayer();
@@ -972,11 +1105,20 @@ function skipRewardWithHeal() {
 // ============================================================
 //  推进到下一个房间
 // ============================================================
-// battleCount 在这里递增一次，代表"当前战斗序号"。
-// 战斗房间读到的就是本场编号（第 1 战从 1 开始）。
+// 按当前累积概率决定下一个房间是不是休息处。
+// 概率由 EnterRoom 维护：每进一个非休息处房间 +10%，进休息处归零。
+function rollNextRoomType() {
+  const chance = Math.min(1, Math.max(0, S.restChance || 0));
+  return Math.random() < chance ? ROOM_TYPE.rest : ROOM_TYPE.battle;
+}
+
+// 推进到下一个房间。
+// 注意 battleCount 只在「真的进入战斗」时才递增 —— 休息处不占战斗编号，
+// 否则「第 N 战」的计数与实际战斗数会脱节（BOSS 的每 10 战判定也会被带偏）。
 function nextRoom() {
-  S.battleCount++;
-  EnterRoom(ROOM_TYPE.battle);
+  const room = rollNextRoomType();
+  if (room === ROOM_TYPE.battle) S.battleCount++;
+  EnterRoom(room);
 }
 
 // 兼容旧调用名
@@ -1000,8 +1142,14 @@ document.getElementById('mainMenuBtn').onclick = () => {
 };
 document.getElementById('skipRewardBtn').onclick = skipRewardNoHeal;
 document.getElementById('skipRewardHpBtn').onclick = skipRewardWithHeal;
+// 休息处：二选一
+document.getElementById('restHealBtn').onclick = restChooseHeal;
+document.getElementById('restUpgradeBtn').onclick = restChooseUpgrade;
 document.getElementById('upgradeSkipBtn').onclick = () => {
   document.getElementById('upgradeView').classList.remove('show');
+  // 从休息处进来的话，放弃升级等于放弃这次选择之外的操作：
+  // 不消耗次数，回到休息面板让玩家另选（或直接选恢复）
+  if (S.room === ROOM_TYPE.rest) openRestPanel();
 };
 document.getElementById('pileCloseBtn').onclick = () => {
   document.getElementById('pileView').classList.remove('show');
