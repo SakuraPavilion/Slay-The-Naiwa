@@ -91,7 +91,7 @@ const CARD_DB = {
   laugh_exhausted: {
     name: '笑到脱力', cost: 3, type: 'attack', rarity: 'uncommon', maxUpgrade: 1,
     laugh: true, base: { dmg: 20, bonus: 30, laugh: 3, threshold: 6 }, upgrade: { dmg: 5, bonus: 5 },
-    desc: v => `造成 ${v.dmg} 点伤害。若狂笑 ≥${v.threshold}，改为 ${v.bonus} 点。狂笑 +${v.laugh}。`,
+    desc: v => `造成 ${v.dmg} 点伤害。若狂笑 大于等于${v.threshold}，改为 ${v.bonus} 点。狂笑 +${v.laugh}。`,
     effect: (S, v) => { dealDamage(S.laugh >= v.threshold ? v.bonus : v.dmg); addLaugh(v.laugh); },
   },
   spit_laugh: {
@@ -103,7 +103,7 @@ const CARD_DB = {
   laugh_wheeze: {
     name: '笑到岔气', cost: 2, type: 'attack', rarity: 'common', maxUpgrade: 2,
     laugh: true, base: { dmg: 8, draw: 2, threshold: 6 }, upgrade: { dmg: 3 },
-    desc: v => `造成 ${v.dmg} 点伤害。若狂笑 ≥${v.threshold}，抽 ${v.draw} 张牌。`,
+    desc: v => `造成 ${v.dmg} 点伤害。若狂笑 大于等于${v.threshold}，抽 ${v.draw} 张牌。`,
     effect: (S, v) => { dealDamage(v.dmg); if (S.laugh >= v.threshold) drawCards(v.draw); },
   },
   big_laugh: {
@@ -114,7 +114,7 @@ const CARD_DB = {
   },
   knife_in_laugh: {
     name: '笑里藏刀', cost: 0, type: 'attack', rarity: 'rare', maxUpgrade: 1,
-    laugh: true, exhaust: true, base: { dmg: 3, laugh: 1 }, upgrade: { dmg: 3 },
+    laugh: true, exhaust: true, base: { dmg: 15, laugh: 5 }, upgrade: { dmg: 9 },
     desc: v => `造成 ${v.dmg} 点伤害。狂笑 +${v.laugh}。消耗。`,
     effect: (S, v) => { dealDamage(v.dmg); addLaugh(v.laugh); },
   },
@@ -195,7 +195,7 @@ const CARD_DB = {
   },
   laugh_burst: {
     name: '笑点爆炸', cost: 2, type: 'power', rarity: 'uncommon', maxUpgrade: 1,
-    laugh: false, base: { laughDamage: 2 }, upgrade: { laughDamage: 2 },
+    laugh: false, base: { laughDamage: 7 }, upgrade: { laughDamage: 2 },
     desc: v => `每当你狂笑值增加时，对敌人造成 ${v.laughDamage} 点伤害。`,
     effect: (S, v) => { addStatus(SIDE.player, 'laughDamage', v.laughDamage); },
   },
@@ -221,7 +221,7 @@ const CARD_DB = {
   },
   laugh_to_death: {
     name: '笑死我了', cost: 2, type: 'attack', rarity: 'epic', maxUpgrade: 1,
-    laugh: true, base: { mult: 4, selfDamage: 4 }, upgrade: { mult: 1, selfDamage: -1 },
+    laugh: true, base: { mult: 6, selfDamage: 4 }, upgrade: { mult: 1, selfDamage: -1 },
     desc: v => `造成 狂笑值 × ${v.mult} 的伤害，自身失去 ${v.selfDamage} 点生命。`,
     effect: (S, v) => {
       dealDamage(S.laugh * v.mult);
@@ -233,7 +233,7 @@ const CARD_DB = {
   },
   armor_of_joy: {
     name: '喜极而泣', cost: 2, type: 'skill', rarity: 'epic', maxUpgrade: 2,
-    laugh: false, base: { block: 14, laugh: -2 }, upgrade: { block: 5 },
+    laugh: false, base: { block: 25, laugh: -5 }, upgrade: { block: 5 },
     desc: v => `获得 ${v.block} 点格挡。狂笑 ${v.laugh}。`,
     effect: (S, v) => { addBlock(v.block); addLaugh(v.laugh); },
   },

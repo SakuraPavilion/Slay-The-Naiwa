@@ -826,6 +826,17 @@
   /* 恢复生命按钮：暖绿色系 */
   .btn.heal { background: #1f3a2c; border-color: #4fbf8a; color: #9df0c0; }
   .btn.heal:hover { background: #2b5240; color: #c8ffe0; }
+  /* 删除卡牌按钮：暗红色系，与「移除」语义一致 */
+  .btn.remove { background: #3a1f22; border-color: #bf4f58; color: #f0a4ab; }
+  .btn.remove:hover { background: #522b30; color: #ffcfd4; }
+  .btn.remove:disabled { background: #2a2022; border-color: #5a4a4c; color: #7a6a6c; }
+
+  /* 升级预览：升级后的卡面加一圈虚线，明确「这是预览」而非实际持有 */
+  .card.card-preview { border-style: dashed; box-shadow: 0 0 18px rgba(110,240,122,0.28); }
+
+  /* 手牌需要长按手势：禁掉浏览器的双击缩放/长按选中，否则触摸端会打架。
+     这里只设 manipulation（仍允许纵向滚动/滑动），不设 none。 */
+  #handArea .card { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
   /* ----- 休息处 ----- */
   .rest-options { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }

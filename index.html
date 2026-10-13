@@ -28,7 +28,7 @@
       <div class="frog-arm right"></div>
     </div>
     <h1 class="game-title">杀戮奶蛙</h1>
-    <p class="game-subtitle">Slay the Milk Frog</p>
+    <p class="game-subtitle">Slay the Naiwa</p>
     <p class="game-tagline">狩猎魔头安东·尼制造的强力魔王，寻找拯救世界的方法。</p>
     <div class="menu-buttons">
       <button class="menu-btn primary" id="startBtn">开 始 游 戏</button>
@@ -91,11 +91,20 @@
         <h2>🔥 休息处</h2>
         <p>每次前往下一个房间时，都有可能进入 <b>休息处</b>。</p>
         <p><b>概率会累积：</b>每进入一个<b>非休息处</b>房间，下一个房间是休息处的概率 <b>+10%</b>；进入休息处后概率 <b>重置为 0</b>。游戏开始时概率为 0，所以第一场之后必定是战斗。</p>
-        <p>休息处提供两个选项，<b>只能选一个</b>：</p>
+        <p>休息处提供三个选项，<b>只能选一个</b>：</p>
         <ul>
           <li><span style="color:#9df0c0;">恢复 50% 生命</span> —— 按最大生命值计算</li>
           <li><span style="color:#9df0a4;">升级一张卡牌</span> —— 与奖励房间的升级相同</li>
+          <li><span style="color:#f0a4ab;">删除一张卡牌</span> —— 从牌组中永久移除，用于精简牌组</li>
         </ul>
+        <p class="ghost-txt" style="font-size:11.5px;color:#888;">牌组只剩 1 张卡时无法删除，避免无牌可抽。</p>
+      </div>
+
+      <div class="tut-card">
+        <h2>🖱 升级预览</h2>
+        <p>在战斗中<b>右键点击</b>手牌，或在触摸屏上<b>长按</b>手牌，即可查看这张卡<b>升级后</b>的样子：当前卡面与升级后卡面左右并排对比。</p>
+        <p>不可升级或已达最高等级的卡牌会给出文字说明。</p>
+        <p class="ghost-txt" style="font-size:11.5px;color:#888;">长按不会打出卡牌；手指滑动超过一小段距离会取消长按。</p>
       </div>
 
       <div class="tut-card">
@@ -260,7 +269,7 @@
     <button class="btn end-turn" id="endTurnBtn">结束回合</button>
   </div>
 
-  <!-- 休息处弹窗：恢复生命 或 升级卡牌，二选一 -->
+  <!-- 休息处弹窗：恢复生命 / 升级卡牌 / 删除卡牌，三选一 -->
   <div class="modal" id="restView">
     <div class="modal-content">
       <div class="modal-title" id="restTitle">休息处</div>
@@ -268,6 +277,31 @@
       <div class="rest-options">
         <button class="btn heal" id="restHealBtn">恢复 50% 生命</button>
         <button class="btn upgrade" id="restUpgradeBtn">升级一张卡牌</button>
+        <button class="btn remove" id="restRemoveBtn">删除一张卡牌</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 升级预览弹窗（手牌右键） -->
+  <div class="modal" id="cardPreviewView">
+    <div class="modal-content">
+      <div class="modal-title" id="previewTitle">卡牌升级预览</div>
+      <div class="modal-sub" id="previewNote"></div>
+      <div class="modal-cards" id="previewCards"></div>
+      <div class="modal-actions">
+        <button class="btn" id="previewCloseBtn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 删除卡牌弹窗（休息处） -->
+  <div class="modal" id="removeView">
+    <div class="modal-content">
+      <div class="modal-title">删除一张卡牌</div>
+      <div class="modal-sub">点击卡牌即可从牌组中<b>永久移除</b>，用于精简牌组。</div>
+      <div class="modal-cards" id="removeCards"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="removeCancelBtn">取消</button>
       </div>
     </div>
   </div>

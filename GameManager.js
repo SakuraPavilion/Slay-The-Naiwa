@@ -317,7 +317,7 @@ function openRestPanel() {
   const sub = document.getElementById('restSub');
   if (sub) {
     sub.textContent = remaining > 0
-      ? `选择一项（还可选择 ${remaining} 项）：恢复生命，或升级一张卡牌`
+      ? `选择一项：恢复生命，或升级一张卡牌，或是移除一张卡牌`
       : '本处已无剩余选择';
   }
   const healBtn = document.getElementById('restHealBtn');
@@ -327,6 +327,12 @@ function openRestPanel() {
   }
   const upBtn = document.getElementById('restUpgradeBtn');
   if (upBtn) upBtn.disabled = remaining <= 0;
+  // 牌组只剩 1 张时不允许删除，避免无牌可抽
+  const rmBtn = document.getElementById('restRemoveBtn');
+  if (rmBtn) {
+    rmBtn.disabled = remaining <= 0 || S.masterDeck.length <= 1;
+    rmBtn.title = S.masterDeck.length <= 1 ? '牌组只剩 1 张卡，无法删除' : '从牌组中永久移除一张卡';
+  }
 
   document.getElementById('restView').classList.add('show');
 }
@@ -364,6 +370,11 @@ function restChooseUpgrade() {
   // 从休息处进入升级界面：升级完成后按休息处的规则消耗选择次数，
   // 而不是像奖励房间那样直接进入下一战。
   openUpgradeView({ choiceKind: 'rest' });
+}
+
+function restChooseRemove() {
+  if (S.restChoicesUsed >= S.restChoices) return;
+  openRemoveView();
 }
 
 // 战斗房间的兼容入口：保持旧函数名可用，内部走 EnterRoom
@@ -995,6 +1006,76 @@ function upgradeMasterDeckCard(index) {
 }
 
 // ============================================================
+//  升级预览（手牌右键）
+// ============================================================
+// 右键手牌查看「升级后」的卡牌信息：左右并排显示当前与升级后的卡面，
+// 便于在升级前判断收益。不可升级或已满级时给出文字说明。
+function previewUpgrade(handIndex) {
+  const card = S.hand[handIndex];
+  if (!card) return;
+
+  const def = CARD_DB[card.id];
+  const maxUp = def ? (def.maxUpgrade || 0) : 0;
+  const level = card.level || 0;
+
+  const container = document.getElementById('previewCards');
+  container.innerHTML = '';
+  container.appendChild(createCardElement(card));
+
+  const note = document.getElementById('previewNote');
+  if (maxUp === 0) {
+    if (note) note.textContent = `「${card.name}」不可升级。`;
+  } else if (level >= maxUp) {
+    if (note) note.textContent = `「${card.name}」已达到最高升级等级（+${maxUp}）。`;
+  } else {
+    const next = makeCard({ id: card.id, level: level + 1 });
+    container.appendChild(createCardElement(next, { preview: true }));
+  }
+
+  const title = document.getElementById('previewTitle');
+  if (title) title.textContent = '卡牌升级预览';
+  document.getElementById('cardPreviewView').classList.add('show');
+}
+
+// ============================================================
+//  休息处 · 删除卡牌
+// ============================================================
+// 列出当前牌组，点击一张即从牌组中永久移除。
+// 牌组只剩 1 张时不允许删除，避免出现无牌可抽的死局。
+function openRemoveView() {
+  const container = document.getElementById('removeCards');
+  container.innerHTML = '';
+
+  if (S.masterDeck.length <= 1) {
+    logMsg('牌组只剩 1 张卡，无法再删除。', '');
+    openRestPanel();
+    return;
+  }
+
+  S.masterDeck.forEach((entry, index) => {
+    const el = createCardElement(makeCard(entry), { interactive: true });
+    el.title = '点击从牌组中移除这张卡';
+    el.onclick = () => removeDeckCard(index);
+    container.appendChild(el);
+  });
+  document.getElementById('removeView').classList.add('show');
+}
+
+function removeDeckCard(index) {
+  const entry = S.masterDeck[index];
+  if (entry === undefined) return;
+  const { id } = normalizeDeckEntry(entry);
+  const def = CARD_DB[id];
+  const name = def ? def.name : id;
+
+  S.masterDeck.splice(index, 1);
+  logMsg(`从牌组中移除了「${name}」。`, '');
+  document.getElementById('removeView').classList.remove('show');
+  // 删除同样消耗一次休息处选择
+  resolveRestChoice();
+}
+
+// ============================================================
 //  升级界面
 // ============================================================
 // 打开升级界面：列出牌组里所有还能升级的卡，点击即可升级一张。
@@ -1142,9 +1223,22 @@ document.getElementById('mainMenuBtn').onclick = () => {
 };
 document.getElementById('skipRewardBtn').onclick = skipRewardNoHeal;
 document.getElementById('skipRewardHpBtn').onclick = skipRewardWithHeal;
-// 休息处：二选一
+// 休息处：三选一
 document.getElementById('restHealBtn').onclick = restChooseHeal;
 document.getElementById('restUpgradeBtn').onclick = restChooseUpgrade;
+document.getElementById('restRemoveBtn').onclick = restChooseRemove;
+// 升级预览（手牌右键）
+document.getElementById('previewCloseBtn').onclick = () => {
+  document.getElementById('cardPreviewView').classList.remove('show');
+};
+document.getElementById('cardPreviewView').addEventListener('click', (e) => {
+  if (e.target.id === 'cardPreviewView') e.target.classList.remove('show');
+});
+// 删除卡牌
+document.getElementById('removeCancelBtn').onclick = () => {
+  document.getElementById('removeView').classList.remove('show');
+  if (S.room === ROOM_TYPE.rest) openRestPanel();   // 取消不消耗次数
+};
 document.getElementById('upgradeSkipBtn').onclick = () => {
   document.getElementById('upgradeView').classList.remove('show');
   // 从休息处进来的话，放弃升级等于放弃这次选择之外的操作：
@@ -1182,6 +1276,7 @@ configureRenderManager({
   handlers: {
     describeMove: getMoveDesc,
     playCard: playCard,
+    previewUpgrade: previewUpgrade,   // 手牌右键 -> 升级预览
   },
 });
 

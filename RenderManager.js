@@ -56,6 +56,8 @@ function createCardElement(card, opts = {}) {
   // 已升级：卡名变绿（CSS .card.upgraded .card-name），并显示「名字 +」
   const level = card.level || 0;
   if (level > 0) el.classList.add('upgraded');
+  // 预览态：右键查看「升级后」的样子时加上，用于额外提示（见 .card-preview）
+  if (opts.preview) el.classList.add('card-preview');
   const displayName = card.name || CardDisplayName(card.id, level);
 
   el.innerHTML = `
@@ -65,7 +67,9 @@ function createCardElement(card, opts = {}) {
     <div class="card-desc">${card.desc}</div>
     ${card.laugh ? '<div class="card-tag">狂笑</div>' : ''}
     ${card.exhaust ? '<div class="card-tag" style="background:#440000;border-color:#880000;color:#ff8888;">消耗</div>' : ''}
-    <div class="card-rarity">${rarity.label}${level > 0 ? ' +' + level : ''}</div>
+    <!-- 稀有度标识只写稀有度本身；升级等级已由卡名的「 +」表示，
+         例如「打击 +」，这里再标一次是重复信息 -->
+    <div class="card-rarity">${rarity.label}</div>
   `;
   return el;
 }
@@ -300,6 +304,73 @@ function renderEnemyStatus() {
 // ============================================================
 //  手牌
 // ============================================================
+// 长按阈值（毫秒）。触摸屏用短一些，鼠标长按用长一些，
+// 避免桌面端按住鼠标时误触发预览。
+const LONG_PRESS_MS_TOUCH = 450;
+const LONG_PRESS_MS_MOUSE = 600;
+// 手指/指针移动超过这个距离就认为是滑动（例如滚动战斗日志），取消长按
+const LONG_PRESS_MOVE_TOL = 12;
+// 测试与交互识别用：最近一次长按触发的时间戳（0 表示从未触发）。
+// 声明放在使用它的手势函数之前，避免 let 的暂时性死区。
+let __lastLongPressAt = 0;
+function lastLongPressAt() { return __lastLongPressAt; }
+// 长按与右键共用同一条预览入口
+function firePreviewUpgrade(index) {
+  if (__rmHandlers.previewUpgrade) __rmHandlers.previewUpgrade(index);
+}
+
+// 给一张手牌装上「点按出牌 / 长按预览」的手势。
+// 关键点：长按触发后必须吃掉随后的 click ——
+// 触摸设备在抬手时一定会补发 click，否则长按查看完就会把牌打出去。
+function initHandCardGesture(el, index) {
+  let timer = null;
+  let startX = 0, startY = 0;
+  let longPressed = false;
+
+  const clear = () => {
+    if (timer !== null) { clearTimeout(timer); timer = null; }
+  };
+
+  el.addEventListener('pointerdown', (e) => {
+    longPressed = false;
+    startX = e.clientX || 0;
+    startY = e.clientY || 0;
+    // 触摸屏没有右键，长按是唯一的预览入口；鼠标端也允许，但阈值更长
+    const ms = e.pointerType === 'touch' ? LONG_PRESS_MS_TOUCH : LONG_PRESS_MS_MOUSE;
+    clear();
+    timer = setTimeout(() => {
+      timer = null;
+      longPressed = true;
+      __lastLongPressAt = Date.now();
+      // 轻触反馈：让用户知道手势已被识别
+      if (navigator.vibrate) { try { navigator.vibrate(12); } catch (err) {} }
+      firePreviewUpgrade(index);
+    }, ms);
+  });
+
+  // 移动（滑动）或离开/取消都视为放弃长按
+  el.addEventListener('pointermove', (e) => {
+    if (timer === null) return;
+    const dx = (e.clientX || 0) - startX;
+    const dy = (e.clientY || 0) - startY;
+    if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOL) clear();
+  });
+  el.addEventListener('pointerup', clear);
+  el.addEventListener('pointercancel', () => { clear(); longPressed = false; });
+  el.addEventListener('pointerleave', clear);
+
+  el.onclick = () => {
+    // 长按已经打开预览，这次 click 属于同一手势的收尾，不能当成出牌
+    if (longPressed) { longPressed = false; return; }
+    if (__rmHandlers.playCard) __rmHandlers.playCard(index);
+  };
+  // 右键：桌面端的预览入口
+  el.oncontextmenu = (e) => {
+    e.preventDefault();
+    firePreviewUpgrade(index);
+  };
+}
+
 function renderHand() {
   const S = rmState();
   const area = document.getElementById('handArea');
@@ -309,8 +380,8 @@ function renderHand() {
     if (card.unplayable || card.cost > S.lp || S.phase !== 'player' || S.gameOver) {
       el.classList.add('unplayable');
     }
-    // 点击行为交由 GameManager 的 playCard 处理（通过注入的 handler）
-    el.onclick = () => { if (__rmHandlers.playCard) __rmHandlers.playCard(i); };
+    // 点按出牌 / 长按预览 / 右键预览（行为在 GameManager 通过 handler 注入）
+    initHandCardGesture(el, i);
     area.appendChild(el);
   });
 }
