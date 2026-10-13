@@ -4,9 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>杀戮奶蛙 · Slay the Milk Frog</title>
-<link rel="stylesheet" href="slay_the_naiwa.css">
+<link rel="stylesheet" href="SlayTheNaiwa.css">
 </head>
 <body>
+
+<!-- ============================================================
+     舞台：固定 1100x720 设计画布，整体缩放到任意分辨率
+     （缩放比例由 responsive.js 写入 --game-scale）
+     ============================================================ -->
+<div id="stage">
 
 <!-- ============================================================
      主菜单
@@ -219,9 +225,11 @@
   </div>
 
 </div>
+</div>
 
 <script src="CardsDataBase.js"></script>
 <script src="EnemiesDataBase.js"></script>
 <script src="GameManager.js"></script>
+<script src="Responsive.js"></script>
 </body>
 </html>

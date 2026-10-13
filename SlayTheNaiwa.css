@@ -642,3 +642,52 @@
     100% { color: #ffd966; text-shadow: none; }
   }
   #battleNum.boss-num { color: #ff6644; text-shadow: 0 0 12px rgba(255,100,60,0.6); }
+
+  /* ============================================================
+     分辨率自适应 —— 整幅画布等比缩放
+     ------------------------------------------------------------
+     设计尺寸固定为 1100 x 720。这里把整幅画面当作一张"画布"整体
+     transform 缩放，因此前面 300 多处设计像素值全部保持原样不动，
+     排版比例与手感和原版完全一致。
+
+     缩放比例 --game-scale 由 responsive.js 计算后写到 :root 上，
+     默认值 1 保证脚本执行前（或 JS 被禁用时）仍是原来的 1:1 呈现，
+     属于渐进增强，不会出现样式闪烁。
+
+     为什么能适配任意分辨率：
+       #stage 的布局尺寸写成 calc(1100px * var(--game-scale))，
+       与 transform 缩放倍数严格一致。于是"布局盒尺寸 = 视觉尺寸"，
+       不会被任何视口裁掉；body 的 flex 居中作用在这个正确尺寸的
+       盒子上，结果就是精确居中 + 自动留边（letterbox）。
+
+       若把 #stage 写死成 1100x720，在小于 1100 的视口里 flex 居中
+       会让元素同时向左、向上溢出并被 overflow 裁掉，视觉中心随之
+       偏移 —— 这正是本方案要避免的陷阱。
+
+     注意：这里刻意复用 .screen / #mainMenu / #tutorial / #game 这些
+     原有选择器，不新增 #stage > * 之类更长权重，以免波及
+     .hidden { display:none !important } 的隐藏逻辑。
+     ============================================================ */
+  :root { --game-scale: 1; }
+
+  /* 舞台：布局尺寸 = 缩放后的画布尺寸，内部坐标仍是 1100x720 设计尺寸 */
+  #stage {
+    position: relative;
+    flex: 0 0 auto;
+    width:  calc(1100px * var(--game-scale));
+    height: calc(720px  * var(--game-scale));
+    transform-origin: center center;
+  }
+
+  /* 三个界面填满舞台，保持各自的层叠与绝对定位基准 */
+  #mainMenu, #tutorial, #game {
+    position: absolute; top: 0; left: 0;
+    transform-origin: center center;
+  }
+
+  /* 只对当前显示的界面施加缩放，避免给隐藏界面留多余的合成层。
+     .hidden 使用 display:none !important，因此这里无需 !important 也能共存。 */
+  .screen:not(.hidden) { transform: scale(var(--game-scale)); }
+
+  /* 极窄视口下不让画布贴死边缘 */
+  body { padding: 8px; }
