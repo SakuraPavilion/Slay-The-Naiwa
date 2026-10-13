@@ -44,7 +44,7 @@ const ENEMY_POOL_WEAK = [
     name: '讥讽魔', hp: 58,
     moves: [
       { name: '双嘲',   icon: '🗯️', type: 'attack', dmg: 6, hits: 2 },
-      { name: '加固',   icon: '🛡️', type: 'block',  block: 15 },
+      { name: '加固',   icon: '🛡️', type: 'block',  block: 10 },
       { name: '狂怒',   icon: '⬆️', type: 'buff',   buff: 6 },
       { name: '大讥讽', icon: '💥', type: 'attack', dmg: 16 },
     ]
@@ -62,8 +62,8 @@ const ENEMY_POOL_WEAK = [
     name: '窃笑鬼', hp: 37,
     moves: [
       { name: '暗笑',   icon: '🗯️', type: 'attack', dmg: 12 },
-      { name: '缩头',   icon: '🛡️', type: 'block',  block: 14 },
-      { name: '窃喜',   icon: '💚', type: 'heal',   heal: 8 },
+      { name: '缩头',   icon: '🛡️', type: 'block',  block: 4 },
+      { name: '窃喜',   icon: '💚', type: 'heal',   heal: 4 },
       { name: '偷袭',   icon: '💥', type: 'attack', dmg: 8, hits: 2 },
     ]
   },

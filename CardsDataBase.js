@@ -129,7 +129,7 @@ const CARD_DB = {
     effect: (S, v) => { addBlock(v.block); },
   },
   curl_up: {
-    name: '缩成一团', cost: 1, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    name: '缩成一团', cost: 1, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
     laugh: false, base: { block: 5, draw: 1 }, upgrade: { block: 3 },
     desc: v => `获得 ${v.block} 点格挡。抽 ${v.draw} 张牌。`,
     effect: (S, v) => { addBlock(v.block); drawCards(v.draw); },
@@ -153,7 +153,7 @@ const CARD_DB = {
     effect: (S, v) => { addBlock(S.laugh * v.mult); },
   },
   cant_hold: {
-    name: '忍不住了', cost: 0, type: 'skill', rarity: 'common', maxUpgrade: 2,
+    name: '忍不住了', cost: 0, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
     laugh: true, base: { laugh: 2, draw: 1 }, upgrade: { laugh: 1 },
     desc: v => `狂笑 +${v.laugh}。抽 ${v.draw} 张牌。`,
     effect: (S, v) => { addLaugh(v.laugh); drawCards(v.draw); },
@@ -171,7 +171,7 @@ const CARD_DB = {
     effect: (S, v) => { drawCards(v.draw); },
   },
   guffaw: {
-    name: '哈哈大笑', cost: 2, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
+    name: '哈哈大笑', cost: 0, type: 'skill', rarity: 'uncommon', maxUpgrade: 2,
     laugh: true, base: { laugh: 4, draw: 1 }, upgrade: { laugh: 2 },
     desc: v => `狂笑 +${v.laugh}。抽 ${v.draw} 张牌。`,
     effect: (S, v) => { addLaugh(v.laugh); drawCards(v.draw); },
@@ -266,10 +266,22 @@ const CARD_DB = {
   },
 };
 
+// ---------- 奖励池排除表 ----------
+// 初始牌组里的卡不应再作为战斗奖励出现，否则玩家会不断拿到同几张基础牌。
+// 初始牌组已固定，因此这里直接硬编码，不依赖 STARTING_DECK 的运行时计算
+// （STARTING_DECK 定义在 GameManager.js，而本文件要先加载，顺序上也拿不到）。
+//
+// 对应 GameManager.js 的 STARTING_DECK：
+//   strike 打击 ×5 / defend 防御 ×5 / curl_up 缩成一团 ×1 / cant_hold 忍不住了 ×1
+const REWARD_EXCLUDED_IDS = ['strike', 'defend', 'curl_up', 'cant_hold'];
+
 // ---------- 按稀有度分组（奖励抽取用） ----------
-function cardIdsByRarity() {
+// opts.exclude：需要从奖励池中剔除的卡牌 ID 数组
+function cardIdsByRarity(opts = {}) {
+  const exclude = new Set(opts.exclude || []);
   const out = { common: [], uncommon: [], rare: [], epic: [] };
   for (const id of Object.keys(CARD_DB)) {
+    if (exclude.has(id)) continue;
     const r = CARD_DB[id].rarity || 'common';
     if (!out[r]) out[r] = [];
     out[r].push(id);

@@ -214,9 +214,12 @@
         <div class="frog-arm right"></div>
       </div>
       <div id="playerHpBar"><div id="playerHpFill"></div></div>
-      <div id="playerHpText">HP 65 / 65</div>
-      <div id="playerBlock">🛡 <span id="playerBlockVal">0</span></div>
-      <!-- 玩家状态（增益 / 减益）：点击徽章可查看详细描述 -->
+      <!-- 护盾值显示在生命值左侧；有护盾时生命值文字变蓝（见 .hp-row / .blocked） -->
+      <div class="hp-row" id="playerHpRow">
+        <span class="hp-block" id="playerBlock">🛡 <span id="playerBlockVal">0</span></span>
+        <span class="hp-text" id="playerHpText">HP 65 / 65</span>
+      </div>
+      <!-- 玩家状态（增益 / 减益）：鼠标悬停徽章可查看详细描述 -->
       <div id="playerStatus"></div>
     </div>
 
@@ -233,7 +236,11 @@
           </div>
         </div>
         <div id="enemyHpBar"><div id="enemyHpFill"></div></div>
-        <div id="enemyHpText">HP 80 / 80</div>
+        <!-- 护盾值显示在生命值左侧；有护盾时生命值文字变蓝 -->
+        <div class="hp-row" id="enemyHpRow">
+          <span class="hp-block" id="enemyBlock">🛡 <span id="enemyBlockVal">0</span></span>
+          <span class="hp-text" id="enemyHpText">HP 80 / 80</span>
+        </div>
         <div id="enemyStatus"></div>
       </div>
     </div>

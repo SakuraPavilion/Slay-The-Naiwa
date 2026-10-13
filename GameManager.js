@@ -519,6 +519,14 @@ function endTurn() {
 
   renderAll();
   if (S.playerHp <= 0) { loseBattle(); return; }
+
+  // ---- 护盾清零时机 ----
+  // 护盾要在「对手的回合结束时」消失，所以每方的护盾都在对方回合结束时清：
+  //   · 敌方护盾在「玩家回合结束」清 —— 它已经替敌方挡完了玩家这一回合的攻击
+  //   · 我方护盾在「敌方回合结束」清（见 nextPlayerTurn）—— 它已经挡完了敌方的攻击
+  // 放在这里而不是回合开始，是因为敌方可能在回合中途被打死、
+  // 或玩家在结算中阵亡，那些分支都不应再走一次清零。
+  S.enemy.block = 0;
   setTimeout(enemyTurn, 600);
 }
 
@@ -595,6 +603,8 @@ function nextPlayerTurn() {
   S.turn++;
   S.phase = 'player';
   S.lp = S.lpMax;
+  // 我方护盾在敌方回合结束时清零：它刚刚已经替奶蛙挡过敌方的攻击。
+  // 敌方护盾的清零在 endTurn() 里（玩家回合结束）。
   S.playerBlock = 0;
   discardHand();
   drawCards(5);
@@ -701,8 +711,15 @@ function loseBattle() {
 // 奖励数量由 count 参数决定（不写死 3）。当前调用方传 S.rewardCardCount，
 // 后续遗物只要修改这个值就能改变奖励张数，UI 会自动按返回长度渲染。
 // 稀有度按 RARITY_WEIGHT 加权，且同一批奖励内不重复。
+// 初始牌组的卡（REWARD_EXCLUDED_IDS）会被排除，不会作为奖励出现。
 function selectCardRewards(count = S.rewardCardCount) {
-  const byRarity = cardIdsByRarity();
+  const byRarity = cardIdsByRarity({ exclude: REWARD_EXCLUDED_IDS });
+  // 兜底：即使将来有人用别的方式重建奖励池，也把初始牌组的卡滤掉，
+  // 保证「起手牌不会作为奖励出现」这条约定不会被绕过。
+  const excluded = new Set(REWARD_EXCLUDED_IDS);
+  for (const r of Object.keys(byRarity)) {
+    byRarity[r] = byRarity[r].filter(id => !excluded.has(id));
+  }
 
   const rarities = Object.keys(RARITY_WEIGHT);
   const totalWeight = rarities.reduce((sum, r) => sum + RARITY_WEIGHT[r], 0);

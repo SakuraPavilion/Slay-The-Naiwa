@@ -452,8 +452,39 @@
   #playerHpFill {
     height: 100%; width: 100%;
     background: linear-gradient(90deg, #cc3333, #ff6666); transition: width 0.3s;
+  }  /* 生命值文字的默认样式。与生命值的间距由外层 .hp-row 负责，这里不再重复设置。 */
+  #playerHpText { font-size: 13px; color: #ff8888; font-weight: bold; }
+
+  /* ============================================================
+     生命值 + 护盾行（敌我共用）
+     ------------------------------------------------------------
+     结构： [🛡 护盾值]  HP 50 / 65
+     护盾值固定显示在生命值左侧；只要护盾 > 0，生命值文字就变蓝。
+     #playerHpText / #enemyHpText 各自带 id，权重高于 .hp-text，
+     因此蓝色状态必须用同样带 id 的选择器（见下方 .blocked 规则）。
+     ============================================================ */
+  .hp-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; margin-top: 3px;
   }
-  #playerHpText { font-size: 13px; margin-top: 3px; color: #ff8888; font-weight: bold; }
+  .hp-text { font-size: 13px; font-weight: bold; color: #ff8888; }
+  /* 有护盾时：生命值变蓝 */
+  .hp-text.blocked,
+  #playerHpText.blocked,
+  #enemyHpText.blocked {
+    color: #6fc3ff;
+    text-shadow: 0 0 8px rgba(110,195,255,0.55);
+  }
+  /* 护盾显示在生命值左侧的小盾牌 */
+  .hp-block {
+    display: none;                 /* 无护盾时整块隐藏 */
+    align-items: center; gap: 3px;
+    padding: 1px 8px; border-radius: 10px;
+    background: #1a2a3a; border: 1px solid #3366aa;
+    color: #9fd0ff; font-size: 12px; font-weight: bold;
+    box-shadow: 0 0 8px rgba(80,150,255,0.25);
+  }
+  .hp-block.show { display: inline-flex; }
 
   #enemyArea {
     flex: 1; display: flex; flex-direction: column;
@@ -580,7 +611,23 @@
     background: linear-gradient(90deg, #aa2222, #ee4444); transition: width 0.3s;
   }
   #enemyHpFill.boss { background: linear-gradient(90deg, #cc6622, #ffaa33); }
-  #enemyHpText { font-size: 13px; margin-top: 3px; color: #ff8888; font-weight: bold; }
+
+  /* ============================================================
+     有护盾时：血条填充也变蓝
+     ------------------------------------------------------------
+     与生命值文字的 .blocked 状态同步（见 renderHpRow）。
+     这里必须用 id 选择器：敌方 BOSS 的 #enemyHpFill.boss 权重为
+     (0,1,1,0)，普通的 .hp-fill.blocked 类选择器压不住它。
+     所以三条按 id 分别书写，且 .boss 的蓝条规则需排在 .boss 之后。
+     ============================================================ */
+  #playerHpFill.blocked,
+  #enemyHpFill.blocked,
+  #enemyHpFill.boss.blocked {
+    background: linear-gradient(90deg, #2b6fb5, #6fc3ff);
+  }
+  #enemyHpText { font-size: 13px; color: #ff8888; font-weight: bold; }
+  /* 敌方空护盾的盾牌底色略偏红，便于区分敌我 */
+  #enemyBlock { background: #2a1c1c; border-color: #7a3a3a; color: #ffb3a3; box-shadow: 0 0 8px rgba(255,110,90,0.2); }
   #enemyStatus { margin-top: 6px; display: flex; gap: 8px; font-size: 11px; flex-wrap: wrap; justify-content: center; }
   /* 玩家状态栏：与敌人状态同款式，位于血条下方 */
   #playerStatus { margin-top: 6px; display: flex; gap: 8px; font-size: 11px; flex-wrap: wrap; justify-content: center; }
@@ -624,14 +671,8 @@
   #statusTip .st-value b { color: #ffd966; font-size: 14px; }
   #statusTip .st-text { color: #b0a99e; }
 
-  #playerBlock {
-    position: absolute; top: 10px; right: 10px;
-    display: flex; align-items: center; gap: 4px;
-    background: #1a2a3a; border: 1px solid #3366aa;
-    border-radius: 16px; padding: 4px 10px; font-size: 13px;
-    color: #88bbff; opacity: 0; transition: opacity 0.3s;
-  }
-  #playerBlock.active { opacity: 1; }
+  /* #playerBlock 已并入 .hp-row 的左侧护盾（见 .hp-block），
+     原先的右上角浮动护盾样式已移除。 */
 
   /* ----- 手牌 ----- */
   #handArea {

@@ -91,13 +91,35 @@ function renderAll() {
   renderPiles();
 }
 
+// ============================================================
+//  生命值 / 护盾
+// ============================================================
+// 统一处理「护盾值显示在生命值左侧，且生命值文字与血条同时变蓝」
+// 这条规则，敌我双方共用，避免两处各写一遍导致表现不一致。
+function renderHpRow(ids, hp, maxHp, block) {
+  const textEl = document.getElementById(ids.text);
+  const blockEl = document.getElementById(ids.block);
+  const valEl = document.getElementById(ids.blockVal);
+  const fillEl = document.getElementById(ids.fill);
+
+  if (textEl) textEl.textContent = `HP ${hp} / ${maxHp}`;
+
+  const hasBlock = (block || 0) > 0;
+  if (valEl) valEl.textContent = block || 0;
+  if (blockEl) blockEl.classList.toggle('show', hasBlock);
+  // 生命值文字与血条填充一起切换蓝色
+  if (textEl) textEl.classList.toggle('blocked', hasBlock);
+  if (fillEl) fillEl.classList.toggle('blocked', hasBlock);
+}
+
 function renderPlayer() {
   const S = rmState();
   const pct = Math.max(0, S.playerHp / S.playerMaxHp * 100);
+  renderHpRow(
+    { fill: 'playerHpFill', text: 'playerHpText', block: 'playerBlock', blockVal: 'playerBlockVal' },
+    S.playerHp, S.playerMaxHp, S.playerBlock
+  );
   document.getElementById('playerHpFill').style.width = pct + '%';
-  document.getElementById('playerHpText').textContent = `HP ${S.playerHp} / ${S.playerMaxHp}`;
-  document.getElementById('playerBlockVal').textContent = S.playerBlock;
-  document.getElementById('playerBlock').classList.toggle('active', S.playerBlock > 0);
   renderPlayerStatus();
 }
 
@@ -146,8 +168,11 @@ function renderEnemy() {
   }
 
   const pct = Math.max(0, S.enemy.hp / S.enemy.maxHp * 100);
+  renderHpRow(
+    { fill: 'enemyHpFill', text: 'enemyHpText', block: 'enemyBlock', blockVal: 'enemyBlockVal' },
+    S.enemy.hp, S.enemy.maxHp, S.enemy.block
+  );
   hpFill.style.width = pct + '%';
-  document.getElementById('enemyHpText').textContent = `HP ${S.enemy.hp} / ${S.enemy.maxHp}`;
 
   // 意图
   const intentEl = document.getElementById('enemyIntent');
